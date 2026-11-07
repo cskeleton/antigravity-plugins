@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" fill="none">
+  <defs>
+    <linearGradient id="bgGrad" x1="16" y1="16" x2="112" y2="112" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="barBlue" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#60A5FA"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="barEmerald" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#34D399"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="barPurple" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#C084FC"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+  </defs>
+  <!-- 10% margin baked in (13..115) -->
+  <rect x="13" y="13" width="102" height="102" rx="22" fill="url(#bgGrad)" stroke="#38BDF8" stroke-width="3"/>
+  <!-- Context Gauge Arc / Top Status Bar -->
+  <rect x="27" y="27" width="74" height="10" rx="5" fill="#334155"/>
+  <rect x="27" y="27" width="52" height="10" rx="5" fill="url(#barEmerald)"/>
+  <!-- Token Bars (Input / Cached / Output) -->
+  <rect x="29" y="64" width="16" height="36" rx="4" fill="url(#barBlue)"/>
+  <rect x="56" y="46" width="16" height="54" rx="4" fill="url(#barEmerald)"/>
+  <rect x="83" y="56" width="16" height="44" rx="4" fill="url(#barPurple)"/>
+  <!-- Trend Pulse Line -->
+  <path d="M29 56 L48 49 L64 41 L82 47 L99 39" stroke="#FBBF24" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="99" cy="39" r="4.5" fill="#FBBF24"/>
+</svg>

@@ -1,0 +1,967 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <!-- MANDATORY: Declare support for both light and dark themes to prevent FOUC -->
+  <meta name="color-scheme" content="light dark">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Model Details &amp; Token Usage</title>
+  <script src="/preload.js"></script>
+  <style>
+    :root {
+      /* MANDATORY: Apply color-scheme to :root for viewport-wide theming */
+      color-scheme: light dark;
+
+      /* Raw Light & Dark palette tokens */
+      --bg-canvas-light: #f8fafc;
+      --bg-canvas-dark: #0f141c;
+      --bg-card-light: #ffffff;
+      --bg-card-dark: #161d27;
+      --bg-subtle-light: #f1f5f9;
+      --bg-subtle-dark: #1e2736;
+      --text-main-light: #0f172a;
+      --text-main-dark: #e2e8f0;
+      --text-muted-light: #475569;
+      --text-muted-dark: #94a3b8;
+      --border-light: #e2e8f0;
+      --border-dark: #283446;
+
+      --brand-light: #2563eb;
+      --brand-dark: #60a5fa;
+      --emerald-light: #059669;
+      --emerald-dark: #34d399;
+      --amber-light: #d97706;
+      --amber-dark: #fbbf24;
+      --rose-light: #e11d48;
+      --rose-dark: #fb7185;
+      --purple-light: #7c3aed;
+      --purple-dark: #a78bfa;
+
+      /* Default Light assignments */
+      --surface-canvas: var(--bg-canvas-light);
+      --surface-card: var(--bg-card-light);
+      --surface-subtle: var(--bg-subtle-light);
+      --ink-main: var(--text-main-light);
+      --ink-muted: var(--text-muted-light);
+      --line-border: var(--border-light);
+      --accent-primary: var(--brand-light);
+      --accent-emerald: var(--emerald-light);
+      --accent-amber: var(--amber-light);
+      --accent-rose: var(--rose-light);
+      --accent-purple: var(--purple-light);
+
+      /* MANDATORY: Fallback for browsers without light-dark() support */
+      @media (prefers-color-scheme: dark) {
+        --surface-canvas: var(--bg-canvas-dark);
+        --surface-card: var(--bg-card-dark);
+        --surface-subtle: var(--bg-subtle-dark);
+        --ink-main: var(--text-main-dark);
+        --ink-muted: var(--text-muted-dark);
+        --line-border: var(--border-dark);
+        --accent-primary: var(--brand-dark);
+        --accent-emerald: var(--emerald-dark);
+        --accent-amber: var(--amber-dark);
+        --accent-rose: var(--rose-dark);
+        --accent-purple: var(--purple-dark);
+      }
+
+      @supports (color: light-dark(white, black)) {
+        --surface-canvas: light-dark(var(--bg-canvas-light), var(--bg-canvas-dark));
+        --surface-card: light-dark(var(--bg-card-light), var(--bg-card-dark));
+        --surface-subtle: light-dark(var(--bg-subtle-light), var(--bg-subtle-dark));
+        --ink-main: light-dark(var(--text-main-light), var(--text-main-dark));
+        --ink-muted: light-dark(var(--text-muted-light), var(--text-muted-dark));
+        --line-border: light-dark(var(--border-light), var(--border-dark));
+        --accent-primary: light-dark(var(--brand-light), var(--brand-dark));
+        --accent-emerald: light-dark(var(--emerald-light), var(--emerald-dark));
+        --accent-amber: light-dark(var(--amber-light), var(--amber-dark));
+        --accent-rose: light-dark(var(--rose-light), var(--rose-dark));
+        --accent-purple: light-dark(var(--purple-light), var(--purple-dark));
+      }
+
+      accent-color: var(--accent-primary);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 12px;
+      background-color: var(--background, var(--surface-canvas));
+      color: var(--foreground, var(--ink-main));
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    code, .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .app-shell {
+      max-width: 1120px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Header Control Bar */
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      background: var(--surface-card);
+      border: 1px solid var(--line-border);
+      border-radius: 8px;
+    }
+
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      min-width: 0;
+      flex: 1;
+    }
+
+    select, button {
+      font: inherit;
+      font-size: 12px;
+      color: var(--ink-main);
+      background: var(--surface-subtle);
+      border: 1px solid var(--line-border);
+      border-radius: 6px;
+      padding: 4px 8px;
+      cursor: pointer;
+    }
+
+    select {
+      max-width: 280px;
+      text-overflow: ellipsis;
+    }
+
+    button:hover {
+      border-color: var(--accent-primary);
+    }
+
+    button.active {
+      background: var(--accent-primary);
+      color: #fff;
+      border-color: var(--accent-primary);
+    }
+
+    /* Compact Live Banner (Latest Turn + Context Window) */
+    .compact-banner {
+      padding: 10px 12px;
+      background: var(--surface-card);
+      border: 1px solid var(--line-border);
+      border-inline-start: 4px solid var(--accent-primary);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .banner-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 12px;
+      font-size: 12.5px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 600;
+      background: var(--surface-subtle);
+      border: 1px solid var(--line-border);
+    }
+
+    .badge-primary {
+      color: var(--accent-primary);
+    }
+
+    .badge-emerald {
+      color: var(--accent-emerald);
+    }
+
+    .badge-amber {
+      color: var(--accent-amber);
+    }
+
+    .badge-rose {
+      color: var(--accent-rose);
+    }
+
+    .badge-purple {
+      color: var(--accent-purple);
+    }
+
+    /* Section Card */
+    .card {
+      background: var(--surface-card);
+      border: 1px solid var(--line-border);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .muted {
+      color: var(--ink-muted);
+      font-size: 11.5px;
+    }
+
+    /* Context Window Gauges */
+    .gauge-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .gauge-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .gauge-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      gap: 8px;
+    }
+
+    .progress-track {
+      height: 8px;
+      background: var(--surface-subtle);
+      border-radius: 999px;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent-primary);
+      transition: width 0.25s ease;
+    }
+
+    .progress-fill.normal { background: var(--accent-emerald); }
+    .progress-fill.warning { background: var(--accent-amber); }
+    .progress-fill.critical { background: var(--accent-rose); }
+    .progress-fill.secondary { background: var(--accent-purple); opacity: 0.85; }
+
+    /* 3-Tier Cost Hierarchy Grid */
+    .tier-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 8px;
+    }
+
+    .tier-box {
+      background: var(--surface-subtle);
+      border: 1px solid var(--line-border);
+      border-radius: 7px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .tier-box.highlight {
+      border-color: var(--accent-primary);
+    }
+
+    .tier-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .tier-total {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .kv-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 8px;
+      font-size: 11.5px;
+    }
+
+    .kv-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 4px;
+    }
+
+    /* Breakdown chips */
+    .breakdown-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .breakdown-item {
+      padding: 6px 8px;
+      background: var(--surface-subtle);
+      border-radius: 6px;
+      font-size: 11.5px;
+    }
+
+    /* Responsive Table (modern-web-guidance: responsive-table) */
+    .table-wrapper {
+      overflow: auto;
+      max-inline-size: 100%;
+      max-block-size: min(440px, 72vh);
+      container-type: inline-size;
+      border: 1px solid var(--line-border);
+      border-radius: 6px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 11.5px;
+    }
+
+    caption {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+
+    th, td {
+      padding: 6px 8px;
+      text-align: end;
+      border-block-end: 1px solid var(--line-border);
+      white-space: nowrap;
+    }
+
+    th:first-child, td:first-child,
+    th.col-left, td.col-left {
+      text-align: start;
+    }
+
+    thead {
+      position: sticky;
+      inset-block-start: 0;
+      z-index: 2;
+      background: var(--surface-subtle);
+    }
+
+    thead th {
+      font-weight: 600;
+      color: var(--ink-muted);
+      background: var(--surface-subtle);
+    }
+
+    tbody th {
+      position: sticky;
+      inset-inline-start: 0;
+      z-index: 1;
+      background: var(--surface-card);
+      font-weight: 600;
+    }
+
+    tbody tr:hover td,
+    tbody tr:hover th {
+      background: var(--surface-subtle);
+    }
+
+    /* Stacked layout when sidebar/aux-pane is very narrow (< 460px) */
+    @container (width < 460px) {
+      table.stackable,
+      table.stackable thead,
+      table.stackable tbody,
+      table.stackable tr,
+      table.stackable th,
+      table.stackable td {
+        display: block;
+        text-align: start;
+      }
+
+      table.stackable thead {
+        /* MANDATORY: Hide column header from layout and screen readers */
+        display: none;
+      }
+
+      table.stackable tr {
+        margin-block-end: 8px;
+        border: 1px solid var(--line-border);
+        border-radius: 6px;
+        overflow: hidden;
+      }
+
+      table.stackable tbody th {
+        position: sticky;
+        inset-block-start: 0;
+        z-index: 2;
+        background: var(--surface-subtle);
+      }
+
+      table.stackable td {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 8px;
+      }
+
+      table.stackable td:nth-child(2)::before { content: var(--label-2) ": "; color: var(--ink-muted); }
+      table.stackable td:nth-child(3)::before { content: var(--label-3) ": "; color: var(--ink-muted); }
+      table.stackable td:nth-child(4)::before { content: var(--label-4) ": "; color: var(--ink-muted); }
+      table.stackable td:nth-child(5)::before { content: var(--label-5) ": "; color: var(--ink-muted); }
+      table.stackable td:nth-child(6)::before { content: var(--label-6) ": "; color: var(--ink-muted); }
+      table.stackable td:nth-child(7)::before { content: var(--label-7) ": "; color: var(--ink-muted); }
+      table.stackable td:nth-child(8)::before { content: var(--label-8) ": "; color: var(--ink-muted); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top Session Switcher & Controls -->
+    <header class="toolbar">
+      <div class="toolbar-group">
+        <label for="session-select" class="muted">会话:</label>
+        <select id="session-select" title="选择要查看的会话或自动跟随最新会话">
+          <option value="">⚡ 自动跟随当前/最新会话</option>
+        </select>
+        <span id="data-source-badge" class="badge">RPC</span>
+      </div>
+      <div class="toolbar-group" style="justify-content: flex-end; flex: 0 0 auto;">
+        <button id="btn-auto-refresh" class="active" title="每 3 秒自动同步最新模型调用">⏱ 自动刷新: 开</button>
+        <button id="btn-refresh" title="立即刷新">↻ 刷新</button>
+      </div>
+    </header>
+
+    <!-- Compact Top Status Strip: Current Message Token Usage + Context Window -->
+    <section class="compact-banner" id="compact-banner" aria-label="当前消息与上下文紧凑概览">
+      <div class="banner-row" id="banner-turn-row">正在加载模型用量数据…</div>
+      <div class="banner-row" id="banner-ctx-row"></div>
+    </section>
+
+    <!-- Section 1: Active Model Identity, Quota & Context Window Watermark -->
+    <section class="card">
+      <div class="card-header">
+        <h2 class="card-title">🤖 当前模型与上下文窗口水位</h2>
+        <div id="quota-pill"></div>
+      </div>
+
+      <div class="banner-row" id="model-identity-row"></div>
+
+      <div class="gauge-stack" id="context-gauges"></div>
+
+      <details id="breakdown-details">
+        <summary style="cursor: pointer; font-size: 12px; font-weight: 600; color: var(--accent-primary);">
+          🧩 查看上下文窗口结构拆解 (System Prompt / Tools / Chat History)
+        </summary>
+        <div class="breakdown-list" id="breakdown-list" style="margin-top: 8px;"></div>
+      </details>
+    </section>
+
+    <!-- Section 2: 3-Tier Cost Hierarchy (Total = Main Session + Subagents) -->
+    <section class="card">
+      <div class="card-header">
+        <h2 class="card-title">Σ 三级累计开销看板（总开销 = 主会话 + Subagents）</h2>
+        <span class="muted" id="hierarchy-subtitle"></span>
+      </div>
+
+      <div class="tier-grid" id="tier-grid"></div>
+
+      <!-- Per-Model Breakdown Table -->
+      <div tabindex="0" role="region" aria-labelledby="model-breakdown-caption" class="table-wrapper">
+        <table class="stackable" style="
+          --label-2: '显示名称';
+          --label-3: '调用次数';
+          --label-4: '新增 Input';
+          --label-5: '缓存 Cached';
+          --label-6: '命中率';
+          --label-7: '总输出 (🧠/💬)';
+          --label-8: '总计 Token';
+        ">
+          <caption id="model-breakdown-caption">按模型分类累计 Token 用量</caption>
+          <thead>
+            <tr>
+              <th>返回模型 ID</th>
+              <th class="col-left">显示名称</th>
+              <th>调用次数</th>
+              <th>新增 Input</th>
+              <th>缓存 Cached</th>
+              <th>命中率</th>
+              <th>总输出 (🧠思考 / 💬回复)</th>
+              <th>总计 Token</th>
+            </tr>
+          </thead>
+          <tbody id="model-breakdown-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Subagents List (shown when subagents exist) -->
+      <div id="subagents-container" style="display: none;">
+        <div style="font-size: 12px; font-weight: 600; margin-bottom: 6px;">🌿 派生 Subagent 会话明细（点击可切换查看单步详情）</div>
+        <div tabindex="0" role="region" aria-labelledby="subagents-table-caption" class="table-wrapper">
+          <table class="stackable" style="
+            --label-2: '角色 / 类型';
+            --label-3: '返回模型';
+            --label-4: '调用次数';
+            --label-5: '新增 Input';
+            --label-6: '缓存 Cached';
+            --label-7: '总输出';
+            --label-8: '总计 Token';
+          ">
+            <caption id="subagents-table-caption">派生 Subagent 会话列表</caption>
+            <thead>
+              <tr>
+                <th>Subagent ID</th>
+                <th class="col-left">角色 / 类型</th>
+                <th class="col-left">返回模型</th>
+                <th>调用次数</th>
+                <th>新增 Input</th>
+                <th>缓存 Cached</th>
+                <th>总输出</th>
+                <th>总计 Token</th>
+              </tr>
+            </thead>
+            <tbody id="subagents-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: Step-by-Step Calls / Turn-by-Turn History -->
+    <section class="card">
+      <div class="card-header">
+        <h2 class="card-title" id="history-title">📋 调用明细</h2>
+        <div style="display: flex; gap: 6px;">
+          <button id="btn-view-calls" class="active">按单次调用 (Calls)</button>
+          <button id="btn-view-turns">按用户消息轮次 (Turns)</button>
+        </div>
+      </div>
+
+      <div tabindex="0" role="region" aria-labelledby="calls-table-caption" class="table-wrapper">
+        <table class="stackable" id="history-table" style="
+          --label-2: '返回模型 ID';
+          --label-3: '新增 Input';
+          --label-4: '缓存 Cached';
+          --label-5: '命中率';
+          --label-6: '输出 (🧠/💬)';
+          --label-7: '实际上下文';
+          --label-8: 'TTFT / 速率';
+        ">
+          <caption id="calls-table-caption">当前会话模型调用历史明细</caption>
+          <thead id="history-thead"></thead>
+          <tbody id="history-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (function() {
+      const apiFetch = window.sidecar?.fetch
+        ? (url, opts) => window.sidecar.fetch(url, opts)
+        : (url, opts) => fetch(url, {
+            ...opts,
+            headers: { 'Content-Type': 'application/json', ...(opts?.headers || {}) }
+          });
+
+      let selectedConversationId = window.sidecar?.conversationId || '';
+      let autoRefresh = true;
+      let viewMode = 'calls'; // 'calls' | 'turns'
+      let latestReport = null;
+      let timerId = null;
+
+      const elSelect = document.getElementById('session-select');
+      const elSourceBadge = document.getElementById('data-source-badge');
+      const elBtnAuto = document.getElementById('btn-auto-refresh');
+      const elBtnRefresh = document.getElementById('btn-refresh');
+      const elBtnCalls = document.getElementById('btn-view-calls');
+      const elBtnTurns = document.getElementById('btn-view-turns');
+
+      function fmtNum(n) {
+        if (n === null || n === undefined || Number.isNaN(Number(n))) return '-';
+        return Number(n).toLocaleString('en-US');
+      }
+
+      function fmtShort(n) {
+        if (n === null || n === undefined || Number.isNaN(Number(n))) return '-';
+        const num = Number(n);
+        if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+        if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
+        return String(num);
+      }
+
+      function esc(str) {
+        return String(str ?? '').replace(/[&<>"']/g, (c) => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+      }
+
+      async function loadSessionsList() {
+        try {
+          const res = await apiFetch('/api/sessions', { method: 'POST', body: JSON.stringify({ limit: 40 }) });
+          if (!res.ok) return;
+          const data = await res.json();
+          const currentVal = selectedConversationId;
+          const opts = ['<option value="">⚡ 自动跟随最新活跃会话</option>'];
+          for (const s of data.sessions || []) {
+            const subTag = s.subagentCount > 0 ? ` [+${s.subagentCount} Sub]` : '';
+            const label = `${s.title || s.conversationId.slice(0, 8)}${subTag} (${s.stepCount} steps)`;
+            const sel = s.conversationId === currentVal ? ' selected' : '';
+            opts.push(`<option value="${esc(s.conversationId)}"${sel}>${esc(label)}</option>`);
+            for (const sub of s.subagents || []) {
+              const subSel = sub.conversationId === currentVal ? ' selected' : '';
+              opts.push(
+                `<option value="${esc(sub.conversationId)}"${subSel}>  ↳ 🌿 [Subagent] ${esc(sub.title)} (${sub.stepCount} steps)</option>`
+              );
+            }
+          }
+          elSelect.innerHTML = opts.join('');
+        } catch (err) {
+          console.error('Failed to load sessions list:', err);
+        }
+      }
+
+      function renderTierCard(title, badgeText, data, isHighlight) {
+        return `
+          <div class="tier-box${isHighlight ? ' highlight' : ''}">
+            <div class="tier-head">
+              <span>${esc(title)}</span>
+              <span class="badge">${esc(badgeText)}</span>
+            </div>
+            <div class="tier-total mono">${fmtShort(data.totalTokens)} <span class="muted" style="font-weight:400;">(${fmtNum(data.totalTokens)})</span></div>
+            <div class="kv-grid">
+              <div class="kv-item"><span class="muted">新增 Input:</span><span class="mono">${fmtShort(data.inputTokens)}</span></div>
+              <div class="kv-item"><span class="muted">缓存 Cached:</span><span class="mono">${fmtShort(data.cacheReadTokens)}</span></div>
+              <div class="kv-item"><span class="muted">缓存命中率:</span><span class="mono" style="color:var(--accent-emerald);font-weight:600;">${data.cacheHitRate}%</span></div>
+              <div class="kv-item"><span class="muted">缓存写入:</span><span class="mono">${fmtShort(data.cacheWriteTokens)}</span></div>
+              <div class="kv-item"><span class="muted">总输出 Out:</span><span class="mono">${fmtShort(data.outputTokens)}</span></div>
+              <div class="kv-item"><span class="muted">🧠思考/💬回复:</span><span class="mono">${fmtShort(data.thinkingTokens)}/${fmtShort(data.responseTokens)}</span></div>
+            </div>
+          </div>
+        `;
+      }
+
+      function renderHistoryTable(report) {
+        const { activeSession } = report;
+        const thead = document.getElementById('history-thead');
+        const tbody = document.getElementById('history-tbody');
+        const titleEl = document.getElementById('history-title');
+
+        if (viewMode === 'turns') {
+          titleEl.textContent = `📋 按用户消息轮次汇总 (共 ${activeSession.turns.length} 轮)`;
+          thead.innerHTML = `
+            <tr>
+              <th>消息轮次</th>
+              <th class="col-left">使用模型 ID</th>
+              <th>调用次数</th>
+              <th>本轮新增 Input</th>
+              <th>本轮缓存 Cached</th>
+              <th>命中率</th>
+              <th>本轮输出 (🧠思考 / 💬回复)</th>
+              <th>轮末实际上下文</th>
+            </tr>
+          `;
+          const rows = [...activeSession.turns].reverse().map((t) => {
+            const ctxEnd = t.contextAtEnd;
+            return `
+              <tr>
+                <th class="mono">消息 #${t.turnIndex} <span class="muted">(Step ${t.firstStep}-${t.lastStep})</span></th>
+                <td class="col-left mono">${esc(t.models.join(', '))}</td>
+                <td class="mono">${t.callCount}</td>
+                <td class="mono">${fmtNum(t.inputTokens)}</td>
+                <td class="mono">${fmtNum(t.cacheReadTokens)}</td>
+                <td class="mono">${t.cacheHitRate}%</td>
+                <td class="mono">${fmtNum(t.outputTokens)} <span class="muted">(${fmtNum(t.thinkingTokens)} / ${fmtNum(t.responseTokens)})</span></td>
+                <td class="mono">${ctxEnd ? `${fmtShort(ctxEnd.actualContextTokens)} (${ctxEnd.actualContextRatio ?? '-'}%)` : '-'}</td>
+              </tr>
+            `;
+          });
+          tbody.innerHTML = rows.join('') || '<tr><td colspan="8" style="text-align:center;">暂无记录</td></tr>';
+        } else {
+          titleEl.textContent = `📋 逐次模型调用明细 (共 ${activeSession.calls.length} 次调用)`;
+          thead.innerHTML = `
+            <tr>
+              <th># (Step)</th>
+              <th class="col-left">返回模型 ID</th>
+              <th>新增 Input</th>
+              <th>缓存 Cached</th>
+              <th>命中率</th>
+              <th>输出 (🧠思考 / 💬回复)</th>
+              <th>当次实际上下文</th>
+              <th>TTFT / 速率</th>
+            </tr>
+          `;
+          const rows = [...activeSession.calls].reverse().map((c) => {
+            const stepRange = c.firstStep === c.lastStep ? `${c.firstStep}` : `${c.firstStep}-${c.lastStep}`;
+            const flags = [
+              c.modelSwitched ? '<span class="badge badge-purple" title="模型发生切换">🔄 切换</span>' : '',
+              c.compressed ? '<span class="badge badge-amber" title="上下文发生压缩">🗜️ 压缩</span>' : '',
+              c.retryCount > 0 ? `<span class="badge badge-amber" title="发生重试">🔁×${c.retryCount}</span>` : '',
+              c.hasError ? `<span class="badge badge-rose" title="${esc(c.errorMessage || '调用异常')}">⚠️ 异常</span>` : ''
+            ].filter(Boolean).join(' ');
+            const perf = [
+              c.ttftSeconds !== null ? `${c.ttftSeconds}s` : '-',
+              c.tokensPerSecond !== null ? `${c.tokensPerSecond} t/s` : ''
+            ].filter(Boolean).join(' · ');
+
+            return `
+              <tr>
+                <th class="mono">#${c.callIndex} <span class="muted">T${c.turnIndex} (${stepRange})</span></th>
+                <td class="col-left mono" title="Response ID: ${esc(c.responseId)}">${esc(c.responseModel)} ${flags}</td>
+                <td class="mono">${fmtNum(c.inputTokens)}</td>
+                <td class="mono">${fmtNum(c.cacheReadTokens)}${c.cacheWriteTokens > 0 ? ` <span class="muted">(+${fmtShort(c.cacheWriteTokens)}写)</span>` : ''}</td>
+                <td class="mono">${c.cacheHitRate}%</td>
+                <td class="mono">${fmtNum(c.outputTokens)} <span class="muted">(${fmtNum(c.thinkingTokens)}/${fmtNum(c.responseTokens)})</span></td>
+                <td class="mono">${fmtShort(c.actualContextTokens)} <span class="muted">(${c.actualContextRatio ?? '-'}%)</span></td>
+                <td class="mono">${esc(perf)}</td>
+              </tr>
+            `;
+          });
+          tbody.innerHTML = rows.join('') || '<tr><td colspan="8" style="text-align:center;">暂无模型调用记录</td></tr>';
+        }
+      }
+
+      function renderReport(report) {
+        latestReport = report;
+        const { activeSession, costHierarchy } = report;
+        const cw = activeSession.contextWindow;
+        const lt = activeSession.latestTurn;
+        const tot = costHierarchy.total;
+        const main = costHierarchy.mainSession;
+        const sub = costHierarchy.subagents;
+
+        elSourceBadge.textContent = (activeSession.dataSource || 'rpc').toUpperCase();
+
+        // 1. Compact Top Banner
+        const turnRow = document.getElementById('banner-turn-row');
+        const ctxRow = document.getElementById('banner-ctx-row');
+        if (lt) {
+          turnRow.innerHTML = `
+            <span class="badge badge-primary mono">🏷 ${esc(cw.responseModel)}</span>
+            <span><strong>本条消息 (#${lt.turnIndex})</strong> · ${lt.callCount} 次调用</span>
+            <span>📥 新增 <strong class="mono">${fmtShort(lt.inputTokens)}</strong> + ⚡缓存 <strong class="mono">${fmtShort(lt.cacheReadTokens)}</strong> (${lt.cacheHitRate}%)</span>
+            <span>📤 输出 <strong class="mono">${fmtShort(lt.outputTokens)}</strong> <span class="muted">(🧠思考 ${fmtShort(lt.thinkingTokens)} / 💬回复 ${fmtShort(lt.responseTokens)})</span></span>
+          `;
+        } else {
+          turnRow.innerHTML = `<span class="muted">当前会话尚无模型调用记录</span>`;
+        }
+
+        const statusBadgeClass =
+          cw.statusLevel === 'critical' ? 'badge-rose' : cw.statusLevel === 'warning' ? 'badge-amber' : 'badge-emerald';
+        ctxRow.innerHTML = `
+          <span class="badge ${statusBadgeClass}">📊 上下文 ${cw.actualPercent}%</span>
+          <span>实际 <strong class="mono">${fmtShort(cw.actualTokensUsed)} / ${fmtShort(cw.maxContextTokens)}</strong> <span class="muted">(估算 ${fmtShort(cw.estimatedTokensUsed)} · ${cw.estimatedPercent}%)</span></span>
+          <span>│</span>
+          <span><strong>Σ 会话总计 <span class="mono">${fmtShort(tot.totalTokens)}</span></strong> = 主会话 <span class="mono">${fmtShort(main.totalTokens)}</span> + Subagents[${sub.count}] <span class="mono">${fmtShort(sub.totalTokens)}</span></span>
+        `;
+
+        // 2. Active Model Identity & Quota
+        const q = activeSession.currentQuota;
+        const quotaEl = document.getElementById('quota-pill');
+        if (q && q.remainingPercent !== null) {
+          const qClass = q.remainingPercent < 20 ? 'badge-rose' : q.remainingPercent < 50 ? 'badge-amber' : 'badge-emerald';
+          const resetDate = q.resetTime ? new Date(q.resetTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+          quotaEl.innerHTML = `<span class="badge ${qClass}" title="重置时间: ${esc(q.resetTime || '')}">🔋 模型配额剩余 ${q.remainingPercent}%${resetDate ? ` (${resetDate} 重置)` : ''}</span>`;
+        } else {
+          quotaEl.innerHTML = '';
+        }
+
+        document.getElementById('model-identity-row').innerHTML = `
+          <span class="badge badge-primary mono">返回 ID: ${esc(cw.responseModel)}</span>
+          <span class="badge">显示名: ${esc(cw.modelDisplayName)}</span>
+          <span class="badge mono">枚举: ${esc(cw.modelEnum)}</span>
+          <span class="badge mono">提供商: ${esc(cw.apiProvider)}</span>
+          <span class="badge mono">单次最大输出: ${fmtNum(cw.maxOutputTokens)}</span>
+        `;
+
+        // Context Window Dual Gauges
+        document.getElementById('context-gauges').innerHTML = `
+          <div class="gauge-row">
+            <div class="gauge-labels">
+              <span><strong>服务商实际已用上下文</strong> (最后一次 Input + Cached)</span>
+              <span class="mono"><strong>${fmtNum(cw.actualTokensUsed)}</strong> / ${fmtNum(cw.maxContextTokens)} (${cw.actualPercent}%) · 剩余 ${fmtShort(cw.remainingTokens)}</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill ${cw.statusLevel}" style="width: ${Math.min(100, cw.actualPercent)}%;"></div>
+            </div>
+          </div>
+          <div class="gauge-row">
+            <div class="gauge-labels">
+              <span class="muted">Antigravity 内部估算上下文 (用于决定何时触发自动压缩)</span>
+              <span class="mono muted">${fmtNum(cw.estimatedTokensUsed)} / ${fmtNum(cw.maxContextTokens)} (${cw.estimatedPercent}%)</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill secondary" style="width: ${Math.min(100, cw.estimatedPercent)}%;"></div>
+            </div>
+          </div>
+        `;
+
+        // Context Breakdown Groups
+        const bdList = document.getElementById('breakdown-list');
+        if (cw.breakdownGroups && cw.breakdownGroups.length > 0) {
+          bdList.innerHTML = cw.breakdownGroups.map((g) => {
+            const topItems = (g.topChildren || []).slice(0, 6).map((c) => `<span class="badge mono">${esc(c.name)}: ${fmtNum(c.numTokens)}</span>`).join(' ');
+            return `
+              <div class="breakdown-item">
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                  <strong>${esc(g.name)}</strong>
+                  <span class="mono">${fmtNum(g.numTokens)} tokens (${g.ratioPercent}%)</span>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:4px;">${topItems}</div>
+              </div>
+            `;
+          }).join('');
+        } else {
+          bdList.innerHTML = '<div class="muted">当前调用未附带上下文分段明细</div>';
+        }
+
+        // 3. 3-Tier Cost Hierarchy
+        document.getElementById('hierarchy-subtitle').textContent =
+          `根会话 ${report.rootConversationId.slice(0, 8)}… · 共 ${tot.sessionCount} 个关联会话`;
+        document.getElementById('tier-grid').innerHTML = [
+          renderTierCard('🔥 全局总开销 (Total)', `${tot.callCount} 次调用`, tot, true),
+          renderTierCard('💬 主会话开销 (Main)', `${main.callCount} 次调用`, main, false),
+          renderTierCard(`🌿 Subagents 开销 (×${sub.count})`, `${sub.callCount} 次调用`, sub, false),
+        ].join('');
+
+        // Per-model breakdown table
+        const modelTbody = document.getElementById('model-breakdown-tbody');
+        modelTbody.innerHTML = (tot.byModel || []).map((m) => `
+          <tr>
+            <th class="mono">${esc(m.responseModel)}</th>
+            <td class="col-left">${esc(m.modelDisplayName)}</td>
+            <td class="mono">${fmtNum(m.callCount)}</td>
+            <td class="mono">${fmtNum(m.inputTokens)}</td>
+            <td class="mono">${fmtNum(m.cacheReadTokens)}</td>
+            <td class="mono">${m.cacheHitRate}%</td>
+            <td class="mono">${fmtNum(m.outputTokens)} <span class="muted">(${fmtNum(m.thinkingTokens)} / ${fmtNum(m.responseTokens)})</span></td>
+            <td class="mono"><strong>${fmtNum(m.totalTokens)}</strong></td>
+          </tr>
+        `).join('') || '<tr><td colspan="8" style="text-align:center;">暂无记录</td></tr>';
+
+        // Subagents table
+        const subContainer = document.getElementById('subagents-container');
+        const subTbody = document.getElementById('subagents-tbody');
+        if (sub.items && sub.items.length > 0) {
+          subContainer.style.display = 'block';
+          subTbody.innerHTML = sub.items.map((s) => `
+            <tr style="cursor:pointer;" data-sub-id="${esc(s.conversationId)}" title="点击切换到该 Subagent 的调用详情">
+              <th class="mono" style="color:var(--accent-primary);">${esc(s.conversationId.slice(0, 8))}…</th>
+              <td class="col-left">${esc(s.title)} <span class="badge mono">${esc(s.agentName)}</span></td>
+              <td class="col-left mono">${esc(s.responseModel)}</td>
+              <td class="mono">${fmtNum(s.summary.callCount)}</td>
+              <td class="mono">${fmtNum(s.summary.inputTokens)}</td>
+              <td class="mono">${fmtNum(s.summary.cacheReadTokens)}</td>
+              <td class="mono">${fmtNum(s.summary.outputTokens)}</td>
+              <td class="mono"><strong>${fmtNum(s.summary.totalTokens)}</strong></td>
+            </tr>
+          `).join('');
+          for (const tr of subTbody.querySelectorAll('tr[data-sub-id]')) {
+            tr.addEventListener('click', () => {
+              selectedConversationId = tr.getAttribute('data-sub-id');
+              elSelect.value = selectedConversationId;
+              fetchAndRenderReport();
+            });
+          }
+        } else {
+          subContainer.style.display = 'none';
+        }
+
+        // 4. Calls / Turns History Table
+        renderHistoryTable(report);
+      }
+
+      async function fetchAndRenderReport() {
+        try {
+          const res = await apiFetch('/api/report', {
+            method: 'POST',
+            body: JSON.stringify({ conversationId: selectedConversationId || undefined })
+          });
+          if (!res.ok) return;
+          const report = await res.json();
+          renderReport(report);
+        } catch (err) {
+          console.error('Failed to fetch report:', err);
+        }
+      }
+
+      elSelect.addEventListener('change', () => {
+        selectedConversationId = elSelect.value;
+        fetchAndRenderReport();
+      });
+
+      elBtnRefresh.addEventListener('click', () => {
+        loadSessionsList();
+        fetchAndRenderReport();
+      });
+
+      elBtnAuto.addEventListener('click', () => {
+        autoRefresh = !autoRefresh;
+        elBtnAuto.classList.toggle('active', autoRefresh);
+        elBtnAuto.textContent = autoRefresh ? '⏱ 自动刷新: 开' : '⏱ 自动刷新: 关';
+      });
+
+      elBtnCalls.addEventListener('click', () => {
+        viewMode = 'calls';
+        elBtnCalls.classList.add('active');
+        elBtnTurns.classList.remove('active');
+        if (latestReport) renderHistoryTable(latestReport);
+      });
+
+      elBtnTurns.addEventListener('click', () => {
+        viewMode = 'turns';
+        elBtnTurns.classList.add('active');
+        elBtnCalls.classList.remove('active');
+        if (latestReport) renderHistoryTable(latestReport);
+      });
+
+      // Initial load & polling loop
+      loadSessionsList();
+      fetchAndRenderReport();
+      timerId = setInterval(() => {
+        if (autoRefresh && !document.hidden) {
+          fetchAndRenderReport();
+        }
+      }, 3000);
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+{
+  "command": "node",
+  "args": [
+    "./server.mjs"
+  ],
+  "restart_policy": "always",
+  "display_name": "Model Details & Token Usage",
+  "description": "实时统计模型详情（返回模型 ID、Input/Cached/Output/Thinking 用量、当前会话上下文窗口水位与主会话/Subagent 三级开销）。",
+  "has_web_ui": true,
+  "ui_config": {
+    "display_name": "Model Details",
+    "views": [
+      {
+        "title": "Model Details",
+        "path": "/",
+        "entrypoint": "SIDECAR_UI_ENTRYPOINT_AUX_PANE"
+      }
+    ]
+  }
+}

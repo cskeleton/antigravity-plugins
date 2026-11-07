@@ -1,0 +1,21 @@
+{
+  "name": "antigravity-model-details",
+  "displayName": "Model Details & Token Usage",
+  "version": "1.0.0",
+  "description": "统计并可视化 Antigravity (App & TUI CLI) 会话的模型详细信息：服务端实际返回的模型 ID、单条消息与累计详细用量（Input / Cached / Output / Thinking）、当前会话上下文窗口水位，以及总开销 / 主会话开销 / Subagent 开销三级汇总。",
+  "logo": "assets/logo.svg",
+  "suggestedPrompts": [
+    "查看当前会话的模型详情、上下文窗口与 Token 用量统计",
+    "打开 Model Details 实时监控面板",
+    "对比当前主会话与所有 Subagent 的 Token 开销"
+  ],
+  "author": {
+    "name": "cskeleton",
+    "url": "https://github.com/cskeleton"
+  },
+  "homepage": "https://github.com/cskeleton/antigravity-model-details",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cskeleton/antigravity-model-details.git"
+  }
+}
