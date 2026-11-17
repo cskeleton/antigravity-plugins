@@ -21,6 +21,14 @@ function fmtShort(n) {
   return String(num);
 }
 
+function fmtTtft(sec) {
+  return sec !== null && sec !== undefined && !Number.isNaN(Number(sec)) ? `${sec}s` : '-';
+}
+
+function fmtTps(tps) {
+  return tps !== null && tps !== undefined && !Number.isNaN(Number(tps)) ? `${tps} t/s` : '-';
+}
+
 function renderCompactSummary(report) {
   const { activeSession, costHierarchy } = report;
   const lt = activeSession.latestTurn;
@@ -47,7 +55,8 @@ function renderCompactSummary(report) {
   lines.push(
     `Σ 三级累计开销: 总计 ${fmtShort(tot.totalTokens)} (${tot.callCount} 次调用) = ` +
       `主会话 ${fmtShort(main.totalTokens)} (${main.callCount} 次) + ` +
-      `Subagents[${sub.count}] ${fmtShort(sub.totalTokens)} (${sub.callCount} 次)`
+      `Subagents[${sub.count}] ${fmtShort(sub.totalTokens)} (${sub.callCount} 次) │ ` +
+      `⚡ 会话平均 TTFT ${fmtTtft(tot.avgTtftSeconds)} · E2E TPS ${fmtTps(tot.avgE2eTps)}`
   );
   return lines.join('\n');
 }
@@ -108,11 +117,11 @@ function renderMarkdownReport(report) {
 
   out.push(`### 3. 三级累计开销汇总（总开销 = 主会话 + Subagents）`);
   out.push(
-    `| 统计层级 | 调用次数 | 新增输入 (Input) | 缓存命中 (Cached) | 缓存写入 (Write) | 缓存命中率 | 总输出 (Output) | 🧠 思考 (Thinking) | 💬 回复 (Response) | **总计 Token** |`
+    `| 统计层级 | 调用次数 | 新增输入 (Input) | 缓存命中 (Cached) | 缓存写入 (Write) | 缓存命中率 | 总输出 (Output) | 🧠 思考 (Thinking) | 💬 回复 (Response) | **总计 Token** | 平均 TTFT | E2E TPS |`
   );
-  out.push(`| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |`);
+  out.push(`| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |`);
   const rowFmt = (label, item) =>
-    `| **${label}** | ${fmtNum(item.callCount)} | ${fmtNum(item.inputTokens)} | ${fmtNum(item.cacheReadTokens)} | ${fmtNum(item.cacheWriteTokens)} | ${item.cacheHitRate}% | ${fmtNum(item.outputTokens)} | ${fmtNum(item.thinkingTokens)} | ${fmtNum(item.responseTokens)} | **${fmtNum(item.totalTokens)}** |`;
+    `| **${label}** | ${fmtNum(item.callCount)} | ${fmtNum(item.inputTokens)} | ${fmtNum(item.cacheReadTokens)} | ${fmtNum(item.cacheWriteTokens)} | ${item.cacheHitRate}% | ${fmtNum(item.outputTokens)} | ${fmtNum(item.thinkingTokens)} | ${fmtNum(item.responseTokens)} | **${fmtNum(item.totalTokens)}** | ${fmtTtft(item.avgTtftSeconds)} | ${fmtTps(item.avgE2eTps)} |`;
   if (lt) {
     out.push(rowFmt(`本条消息 (#${lt.turnIndex})`, lt));
   }
@@ -122,14 +131,14 @@ function renderMarkdownReport(report) {
   out.push('');
 
   if (tot.byModel && tot.byModel.length > 0) {
-    out.push(`#### 🤖 按模型分类累计开销（含主会话与 Subagents）`);
+    out.push(`#### 🤖 按模型分类累计开销与性能（含主会话与 Subagents）`);
     out.push(
-      `| 返回模型 ID | 显示名称 | 调用次数 | 新增输入 | 缓存命中 | 缓存命中率 | 总输出 (思考 / 回复) | 总计 Token |`
+      `| 返回模型 ID | 显示名称 | 调用次数 | 新增输入 | 缓存命中 | 缓存命中率 | 总输出 (思考 / 回复) | 总计 Token | 平均 TTFT | E2E TPS |`
     );
-    out.push(`| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: |`);
+    out.push(`| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |`);
     for (const m of tot.byModel) {
       out.push(
-        `| \`${m.responseModel}\` | ${m.modelDisplayName} | ${fmtNum(m.callCount)} | ${fmtNum(m.inputTokens)} | ${fmtNum(m.cacheReadTokens)} | ${m.cacheHitRate}% | ${fmtNum(m.outputTokens)} (${fmtNum(m.thinkingTokens)} / ${fmtNum(m.responseTokens)}) | **${fmtNum(m.totalTokens)}** |`
+        `| \`${m.responseModel}\` | ${m.modelDisplayName} | ${fmtNum(m.callCount)} | ${fmtNum(m.inputTokens)} | ${fmtNum(m.cacheReadTokens)} | ${m.cacheHitRate}% | ${fmtNum(m.outputTokens)} (${fmtNum(m.thinkingTokens)} / ${fmtNum(m.responseTokens)}) | **${fmtNum(m.totalTokens)}** | ${fmtTtft(m.avgTtftSeconds)} | ${fmtTps(m.avgE2eTps)} |`
       );
     }
     out.push('');
@@ -138,12 +147,12 @@ function renderMarkdownReport(report) {
   if (sub.items && sub.items.length > 0) {
     out.push(`#### 🌿 Subagent 独立会话明细 (${sub.items.length} 个)`);
     out.push(
-      `| Subagent 会话 ID | 角色 / 名称 | 模型 | 调用次数 | 新增输入 | 缓存命中 | 总输出 | 总计 Token | 上下文峰值 |`
+      `| Subagent 会话 ID | 角色 / 名称 | 模型 | 调用次数 | 新增输入 | 缓存命中 | 总输出 | 总计 Token | 平均 TTFT | E2E TPS | 上下文峰值 |`
     );
-    out.push(`| :--- | :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: |`);
+    out.push(`| :--- | :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |`);
     for (const s of sub.items) {
       out.push(
-        `| \`${s.conversationId.slice(0, 8)}…\` | ${s.title} (\`${s.agentName}\`) | \`${s.responseModel}\` | ${fmtNum(s.summary.callCount)} | ${fmtNum(s.summary.inputTokens)} | ${fmtNum(s.summary.cacheReadTokens)} | ${fmtNum(s.summary.outputTokens)} | **${fmtNum(s.summary.totalTokens)}** | ${fmtShort(s.contextWindow.actualTokensUsed)} (${s.contextWindow.actualPercent}%) |`
+        `| \`${s.conversationId.slice(0, 8)}…\` | ${s.title} (\`${s.agentName}\`) | \`${s.responseModel}\` | ${fmtNum(s.summary.callCount)} | ${fmtNum(s.summary.inputTokens)} | ${fmtNum(s.summary.cacheReadTokens)} | ${fmtNum(s.summary.outputTokens)} | **${fmtNum(s.summary.totalTokens)}** | ${fmtTtft(s.summary.avgTtftSeconds)} | ${fmtTps(s.summary.avgE2eTps)} | ${fmtShort(s.contextWindow.actualTokensUsed)} (${s.contextWindow.actualPercent}%) |`
       );
     }
     out.push('');
@@ -155,7 +164,7 @@ function renderMarkdownReport(report) {
       `### 4. 最近 ${recentCalls.length} 次模型调用明细（共 ${activeSession.calls.length} 次）`
     );
     out.push(
-      `| # | 轮次 | Step | 返回模型 ID | Input | Cached | 命中率 | Output (🧠/💬) | 实际上下文 | TTFT | 速率 |`
+      `| # | 轮次 | Step | 返回模型 ID | Input | Cached | 命中率 | Output (🧠/💬) | 实际上下文 | TTFT | E2E TPS |`
     );
     out.push(`| ---: | ---: | :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |`);
     for (const c of recentCalls) {
@@ -169,8 +178,9 @@ function renderMarkdownReport(report) {
       ]
         .filter(Boolean)
         .join('');
+      const e2eTps = c.e2eTokensPerSecond !== undefined ? c.e2eTokensPerSecond : c.tokensPerSecond;
       out.push(
-        `| ${c.callIndex} | T${c.turnIndex} | \`${stepStr}\` | \`${c.responseModel}\` ${flags} | ${fmtNum(c.inputTokens)} | ${fmtNum(c.cacheReadTokens)} | ${c.cacheHitRate}% | ${fmtNum(c.outputTokens)} (${fmtNum(c.thinkingTokens)}/${fmtNum(c.responseTokens)}) | ${fmtShort(c.actualContextTokens)} (${c.actualContextRatio ?? '-'}%) | ${c.ttftSeconds !== null ? `${c.ttftSeconds}s` : '-'} | ${c.tokensPerSecond !== null ? `${c.tokensPerSecond} t/s` : '-'} |`
+        `| ${c.callIndex} | T${c.turnIndex} | \`${stepStr}\` | \`${c.responseModel}\` ${flags} | ${fmtNum(c.inputTokens)} | ${fmtNum(c.cacheReadTokens)} | ${c.cacheHitRate}% | ${fmtNum(c.outputTokens)} (${fmtNum(c.thinkingTokens)}/${fmtNum(c.responseTokens)}) | ${fmtShort(c.actualContextTokens)} (${c.actualContextRatio ?? '-'}%) | ${fmtTtft(c.ttftSeconds)} | ${fmtTps(e2eTps)} |`
       );
     }
   }

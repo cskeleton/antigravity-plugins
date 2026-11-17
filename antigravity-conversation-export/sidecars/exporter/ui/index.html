@@ -1,0 +1,1671 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <!-- MANDATORY: Declare support for both light and dark themes to prevent FOUC -->
+  <meta name="color-scheme" content="light dark">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Conversation Export</title>
+  <script src="/preload.js"></script>
+  <style>
+    :root {
+      color-scheme: light dark;
+
+      /* Raw Light & Dark palette tokens */
+      --bg-canvas-light: #f8fafc;
+      --bg-canvas-dark: #0f141c;
+      --bg-card-light: #ffffff;
+      --bg-card-dark: #161d27;
+      --bg-subtle-light: #f1f5f9;
+      --bg-subtle-dark: #1e2736;
+      --bg-hover-light: #e2e8f0;
+      --bg-hover-dark: #263244;
+      --text-main-light: #0f172a;
+      --text-main-dark: #e2e8f0;
+      --text-muted-light: #475569;
+      --text-muted-dark: #94a3b8;
+      --border-light: #cbd5e1;
+      --border-dark: #2c3a4f;
+
+      /* High-contrast (>= 3:1) brand accent colors */
+      --brand-light: #1d4ed8;
+      --brand-dark: #60a5fa;
+      --brand-fg-light: #ffffff;
+      --brand-fg-dark: #09111e;
+
+      --ok-light: #047857;
+      --ok-dark: #34d399;
+      --warn-light: #b45309;
+      --warn-dark: #fbbf24;
+      --err-light: #be123c;
+      --err-dark: #fb7185;
+
+      --scroll-thumb-light: #64748b;
+      --scroll-thumb-dark: #64748b;
+      --scroll-track-light: #f1f5f9;
+      --scroll-track-dark: #161d27;
+
+      /* Default Light assignments */
+      --surface-canvas: var(--bg-canvas-light);
+      --surface-card: var(--bg-card-light);
+      --surface-subtle: var(--bg-subtle-light);
+      --surface-hover: var(--bg-hover-light);
+      --ink-main: var(--text-main-light);
+      --ink-muted: var(--text-muted-light);
+      --line-border: var(--border-light);
+      --brand-color: var(--brand-light);
+      --brand-fg: var(--brand-fg-light);
+      --state-ok: var(--ok-light);
+      --state-warn: var(--warn-light);
+      --state-err: var(--err-light);
+      --scrollbar-thumb: var(--scroll-thumb-light);
+      --scrollbar-track: var(--scroll-track-light);
+
+      /* MANDATORY: Fallback for browsers without light-dark() support */
+      @media (prefers-color-scheme: dark) {
+        --surface-canvas: var(--bg-canvas-dark);
+        --surface-card: var(--bg-card-dark);
+        --surface-subtle: var(--bg-subtle-dark);
+        --surface-hover: var(--bg-hover-dark);
+        --ink-main: var(--text-main-dark);
+        --ink-muted: var(--text-muted-dark);
+        --line-border: var(--border-dark);
+        --brand-color: var(--brand-dark);
+        --brand-fg: var(--brand-fg-dark);
+        --state-ok: var(--ok-dark);
+        --state-warn: var(--warn-dark);
+        --state-err: var(--err-dark);
+        --scrollbar-thumb: var(--scroll-thumb-dark);
+        --scrollbar-track: var(--scroll-track-dark);
+      }
+
+      @supports (color: light-dark(white, black)) {
+        --surface-canvas: light-dark(var(--bg-canvas-light), var(--bg-canvas-dark));
+        --surface-card: light-dark(var(--bg-card-light), var(--bg-card-dark));
+        --surface-subtle: light-dark(var(--bg-subtle-light), var(--bg-subtle-dark));
+        --surface-hover: light-dark(var(--bg-hover-light), var(--bg-hover-dark));
+        --ink-main: light-dark(var(--text-main-light), var(--text-main-dark));
+        --ink-muted: light-dark(var(--text-muted-light), var(--text-muted-dark));
+        --line-border: light-dark(var(--border-light), var(--border-dark));
+        --brand-color: light-dark(var(--brand-light), var(--brand-dark));
+        --brand-fg: light-dark(var(--brand-fg-light), var(--brand-fg-dark));
+        --state-ok: light-dark(var(--ok-light), var(--ok-dark));
+        --state-warn: light-dark(var(--warn-light), var(--warn-dark));
+        --state-err: light-dark(var(--err-light), var(--err-dark));
+        --scrollbar-thumb: light-dark(var(--scroll-thumb-light), var(--scroll-thumb-dark));
+        --scrollbar-track: light-dark(var(--scroll-track-light), var(--scroll-track-dark));
+      }
+
+      accent-color: var(--brand-color);
+      scrollbar-width: auto;
+      scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    }
+
+    /* Explicit iframe host-theme sync override (handles Safari/WebKit iframe prefers-color-scheme quirk) */
+    html[data-host-theme="light"] {
+      color-scheme: light;
+      accent-color: var(--brand-color);
+    }
+    html[data-host-theme="dark"] {
+      color-scheme: dark;
+      accent-color: var(--brand-color);
+    }
+
+    /* Legacy scrollbar fallback wrapped per modern-web-guidance */
+    @supports not (scrollbar-color: auto) {
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--scrollbar-thumb);
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--scrollbar-track);
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--background, var(--surface-canvas));
+      color: var(--foreground, var(--ink-main));
+      font-family: "Google Sans Flex", "Google Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      font-size: 13px;
+      line-height: 1.45;
+      accent-color: var(--brand-color);
+    }
+
+    .shell {
+      max-width: 760px;
+      margin: 0 auto;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 12px 14px 16px;
+      gap: 10px;
+    }
+
+    /* Top Session Selector Card */
+    .session-card {
+      background: var(--surface-card);
+      border: 1px solid var(--line-border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .session-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-weight: 650;
+      font-size: 14px;
+      margin: 0;
+    }
+
+    .brand-title svg {
+      width: 16px;
+      height: 16px;
+      color: var(--brand-color);
+      flex: none;
+    }
+
+    .top-tools {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .session-picker-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .search-input {
+      width: 150px;
+      flex: 0 1 160px;
+    }
+
+    .session-select {
+      flex: 1 1 240px;
+      min-width: 0;
+    }
+
+    /* Main Form Card */
+    .form-card {
+      background: var(--surface-card);
+      border: 1px solid var(--line-border);
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 13px;
+      flex: 1;
+    }
+
+    .cxp-row {
+      display: grid;
+      grid-template-columns: 88px 1fr;
+      gap: 8px 12px;
+      align-items: start;
+    }
+
+    @media (max-width: 480px) {
+      .cxp-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
+      }
+    }
+
+    .cxp-label {
+      font-size: 12.5px;
+      font-weight: 550;
+      line-height: 28px;
+      color: var(--ink-muted);
+      white-space: nowrap;
+    }
+
+    .cxp-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .cxp-inline {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .cxp-hint {
+      font-size: 11.5px;
+      line-height: 1.45;
+      color: var(--ink-muted);
+    }
+
+    .cxp-hint.warn {
+      color: var(--state-warn);
+    }
+
+    .cxp-hint.error {
+      color: var(--state-err);
+    }
+
+    /* Segmented Radio Controls */
+    .cxp-seg {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 2px;
+      padding: 2px;
+      border-radius: 8px;
+      background: var(--surface-subtle);
+      border: 1px solid var(--line-border);
+      align-self: flex-start;
+    }
+
+    .cxp-seg button {
+      border: none;
+      background: transparent;
+      color: var(--ink-main);
+      font: inherit;
+      font-size: 12.5px;
+      line-height: 20px;
+      padding: 3px 11px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .cxp-seg button:hover:not(:disabled) {
+      background: var(--surface-hover);
+    }
+
+    .cxp-seg button[aria-checked="true"] {
+      background: var(--surface-card);
+      box-shadow: 0 0 0 1px var(--line-border), 0 1px 2px rgba(0, 0, 0, 0.1);
+      font-weight: 600;
+      color: var(--brand-color);
+    }
+
+    @media (forced-colors: active) {
+      .cxp-seg button[aria-checked="true"] {
+        outline: 2px solid SelectedItem;
+        outline-offset: -2px;
+      }
+    }
+
+    .cxp-seg button:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+    }
+
+    .swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(128, 128, 128, 0.45);
+      display: inline-block;
+      forced-color-adjust: none;
+    }
+    .swatch.paper { background: #ffffff; }
+    .swatch.sepia { background: #f3e4c2; }
+    .swatch.ink { background: #e5e5e0; }
+    .swatch.night { background: #11151b; }
+    .swatch.google {
+      background: conic-gradient(#4285f4 0 90deg, #34a853 90deg 180deg, #fbbc04 180deg 270deg, #ea4335 270deg 360deg);
+      border-color: rgba(66, 133, 244, 0.45);
+    }
+    .swatch.antigravity {
+      background: radial-gradient(circle at 32% 30%, #38bdf8, #6366f1 55%, #0b0f19 95%);
+      border-color: rgba(56, 189, 248, 0.65);
+    }
+
+    /* Inputs & Selects */
+    .cxp-input, .cxp-select {
+      height: 30px;
+      padding: 0 8px;
+      border-radius: 7px;
+      border: 1px solid var(--line-border);
+      background: var(--surface-subtle);
+      color: var(--ink-main);
+      font: inherit;
+      font-size: 12.5px;
+    }
+
+    .cxp-input:focus, .cxp-select:focus {
+      outline: 2px solid var(--brand-color);
+      outline-offset: -1px;
+      border-color: var(--brand-color);
+    }
+
+    .cxp-input.num {
+      width: 86px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .cxp-input.path {
+      flex: 1;
+      min-width: 140px;
+    }
+
+    .cxp-unit {
+      font-size: 12px;
+      color: var(--ink-muted);
+    }
+
+    /* Buttons & Links */
+    .cxp-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      height: 34px;
+      padding: 0 14px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 550;
+      cursor: pointer;
+      background: transparent;
+      color: var(--ink-main);
+    }
+
+    .cxp-btn.sm {
+      height: 28px;
+      padding: 0 9px;
+      font-size: 12px;
+      border-radius: 6px;
+    }
+
+    .cxp-btn.outline {
+      border-color: var(--line-border);
+      background: var(--surface-subtle);
+    }
+
+    .cxp-btn.outline:hover:not(:disabled) {
+      background: var(--surface-hover);
+      border-color: var(--brand-color);
+    }
+
+    .cxp-btn.primary {
+      background: var(--brand-color);
+      color: var(--brand-fg);
+    }
+
+    .cxp-btn.primary:hover:not(:disabled) {
+      filter: brightness(1.07);
+    }
+
+    .cxp-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .cxp-link {
+      border: none;
+      background: transparent;
+      padding: 0;
+      color: var(--brand-color);
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .cxp-link:hover:not(:disabled) {
+      text-decoration: underline;
+    }
+
+    /* Messages Selection List */
+    .cxp-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--ink-muted);
+    }
+
+    .cxp-list {
+      border: 1px solid var(--line-border);
+      border-radius: 8px;
+      max-height: 290px;
+      overflow-y: auto;
+      background: var(--surface-subtle);
+    }
+
+    .cxp-round {
+      padding: 7px 10px;
+      border-top: 1px solid var(--line-border);
+    }
+
+    .cxp-round:first-child {
+      border-top: 0;
+    }
+
+    .cxp-round-head {
+      font-size: 11.5px;
+      color: var(--ink-muted);
+      margin-bottom: 3px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .cxp-msg {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      padding: 4px 5px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .cxp-msg:hover {
+      background: var(--surface-hover);
+    }
+
+    .cxp-msg input[type="checkbox"] {
+      margin: 3px 0 0;
+      flex: none;
+      width: 14px;
+      height: 14px;
+    }
+
+    .cxp-check-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: var(--ink-muted);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    /* Progressive enhancement fallback for older browsers without accent-color */
+    @supports not (accent-color: var(--brand-color)) {
+      input[type="checkbox"].visually-hidden {
+        position: absolute !important;
+        clip-path: inset(50%) !important;
+        overflow: hidden !important;
+        width: 1px !important;
+        height: 1px !important;
+        margin: -1px !important;
+        padding: 0 !important;
+        border: 0 !important;
+        white-space: nowrap !important;
+      }
+      label.chk-wrap {
+        position: relative;
+        padding-left: 1.5rem;
+      }
+      input[type="checkbox"].visually-hidden + span::before {
+        content: "";
+        position: absolute;
+        left: 4px;
+        top: 6px;
+        width: 14px;
+        height: 14px;
+        border: 1.5px solid var(--line-border);
+        background: var(--surface-card);
+        border-radius: 3px;
+      }
+      input[type="checkbox"].visually-hidden:focus-visible + span::before {
+        outline: 2px solid var(--brand-color);
+        outline-offset: 2px;
+      }
+      input[type="checkbox"].visually-hidden:checked + span::before {
+        background-color: var(--brand-color);
+        border-color: var(--brand-color);
+      }
+      input[type="checkbox"].visually-hidden:checked + span::after {
+        content: "✓";
+        position: absolute;
+        left: 6px;
+        top: 3px;
+        color: var(--brand-fg);
+        font-weight: 700;
+        font-size: 11px;
+      }
+    }
+
+    .cxp-role {
+      flex: none;
+      width: 46px;
+      font-size: 12px;
+      font-weight: 550;
+      color: var(--ink-muted);
+    }
+
+    .cxp-msg-main {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .cxp-msg-text {
+      font-size: 12.5px;
+      line-height: 19px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--ink-main);
+    }
+
+    .cxp-msg-meta {
+      font-size: 11.5px;
+      color: var(--ink-muted);
+      margin-top: 1px;
+    }
+
+    /* Export Result Banner */
+    .cxp-result {
+      padding: 10px 12px;
+      border-radius: 9px;
+      background: var(--surface-card);
+      border: 1px solid var(--line-border);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .cxp-result-text {
+      font-size: 12px;
+      line-height: 1.45;
+      word-break: break-all;
+    }
+
+    .cxp-result-text.ok {
+      color: var(--state-ok);
+      font-weight: 550;
+    }
+
+    .cxp-result-text.error {
+      color: var(--state-err);
+    }
+
+    .cxp-result-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    /* Footer */
+    .cxp-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--surface-card);
+      border: 1px solid var(--line-border);
+      border-radius: 10px;
+      position: sticky;
+      bottom: 8px;
+    }
+
+    .cxp-status {
+      flex: 1;
+      min-width: 0;
+      font-size: 12px;
+      color: var(--ink-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .cxp-footer-btns {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .center-msg {
+      padding: 32px 12px;
+      text-align: center;
+      color: var(--ink-muted);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="shell" id="app"></div>
+
+  <script>
+    (function () {
+      // Sync explicit host iframe color-scheme if Antigravity pushes --background
+      function detectDarkFromCssBg(val) {
+        if (!val) return null;
+        const m = String(val).trim().match(/^#([0-9a-f]{3,8})$/i);
+        if (m) {
+          let hex = m[1];
+          if (hex.length === 3) hex = hex.split('').map((c) => c + c).join('');
+          const r = parseInt(hex.slice(0, 2), 16);
+          const g = parseInt(hex.slice(2, 4), 16);
+          const b = parseInt(hex.slice(4, 6), 16);
+          return (0.299 * r + 0.587 * g + 0.114 * b) < 128;
+        }
+        const rgb = String(val).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+        if (rgb) {
+          return (0.299 * Number(rgb[1]) + 0.587 * Number(rgb[2]) + 0.114 * Number(rgb[3])) < 128;
+        }
+        return null;
+      }
+
+      window.addEventListener('message', (ev) => {
+        if (ev.data?.type === 'theme-change' && ev.data.payload?.cssVariables) {
+          const bg = ev.data.payload.cssVariables['--background'];
+          const isDark = detectDarkFromCssBg(bg);
+          if (isDark !== null) {
+            document.documentElement.setAttribute('data-host-theme', isDark ? 'dark' : 'light');
+          }
+        }
+      });
+
+      const PREFS_KEY = 'agy-conversation-export:prefs';
+      const THEMES = ['paper', 'sepia', 'ink', 'night', 'google', 'antigravity'];
+      const LEVELS = ['detailed', 'summary', 'none'];
+
+      const DICT = {
+        zh: {
+          title: '导出对话',
+          searchPlaceholder: '筛选会话…',
+          includeSub: '含 Subagent',
+          currentBtn: '当前会话',
+          refreshBtn: '刷新',
+          loadingSessions: '正在加载会话列表…',
+          loadingOutline: '正在读取会话内容…',
+          loadFailed: '读取失败：{error}',
+          noSessions: '暂无可导出的会话',
+          fieldFormat: '格式',
+          fieldTheme: '主题',
+          fieldWidth: '图片宽度',
+          fieldFontSize: '字号',
+          fieldTools: '工具调用',
+          fieldThinking: '思考过程',
+          fieldModel: '摘要方式',
+          fieldSave: '保存到',
+          fieldMessages: '导出内容',
+          formatMarkdown: 'Markdown',
+          formatHtml: 'HTML',
+          formatImage: '图片',
+          imageUnavailable: '图片导出不可用：{reason}',
+          theme_paper: '纸白',
+          theme_sepia: '暖黄',
+          theme_ink: '墨黑',
+          theme_night: '夜间',
+          theme_google: 'Google',
+          theme_antigravity: 'Antigravity',
+          preset_phone: '手机',
+          preset_tablet: '平板',
+          preset_desktop: '桌面',
+          preset_custom: '自定义',
+          widthReset: '恢复默认',
+          widthHint: '输出 {px} px 宽（{scale} 倍清晰度），字号 {font} px；超长对话会自动在段落边界分页并压缩 PNG。',
+          widthInvalid: '宽度需在 {min}–{max} px 之间。',
+          fontAuto: '自动（{n}）',
+          fontInvalid: '字号需在 {min}–{max} px 之间。',
+          level_detailed: '详细',
+          level_summary: '摘要',
+          level_none: '无',
+          hint_tools_detailed: '保留每次工具调用的参数和截断后的输出。',
+          hint_tools_summary: '每次工具调用用一句话概括做了什么。',
+          hint_tools_none: '不显示工具调用。',
+          hint_tools_rule: '未选外部模型时按规则零开销生成。',
+          hint_thinking_detailed: '保留每段思考的完整内容。',
+          hint_thinking_summary: '每段思考用一句话概括核心意图（默认本地零开销提炼）。',
+          hint_thinking_none: '不显示思考过程。',
+          modelLocal: '不使用外部模型（本地智能提炼 · 0 Token）',
+          modelCalls: '预计调用外部模型 {n} 次。',
+          saveFolder: '本地文件夹',
+          saveDownload: '浏览器下载',
+          saveChoose: '选择…',
+          savePlaceholder: '保存文件夹路径',
+          msgAll: '全选',
+          msgUsers: '仅用户',
+          msgAssistants: '仅助手',
+          msgNone: '全不选',
+          msgCount: '已选 {n} / {total} 条消息',
+          msgEmpty: '这个会话还没有对话消息。',
+          roundLabel: '第 {n} 轮',
+          roleUser: '用户',
+          roleAssistant: '助手',
+          roundImages: '[图片 ×{n}]',
+          roundNoReply: '（无文字回复）',
+          roundTools: '{n} 次工具调用',
+          roundReasoning: '{n} 段思考',
+          actionCancel: '取消',
+          actionExport: '导出对话',
+          exporting: '正在导出…',
+          exportingImage: '正在通过 Chromium 渲染高清长图…',
+          exportingSummaries: '正在生成摘要…',
+          resultSaved: '已保存到 {path}',
+          resultSavedMany: '已保存 {n} 张图片到 {dir}',
+          resultDownloaded: '已开始下载 {file}',
+          resultDownloadedMany: '已触发下载 {n} 个文件',
+          resultPartial: '{n} 组外部模型摘要失败，已自动回退为本地规则提炼。',
+          resultFailed: '导出失败：{error}',
+          resultOpen: '打开文件',
+          resultOpenFirst: '打开第一张',
+          reveal_finder: '在访达中显示',
+          reveal_explorer: '在资源管理器中显示',
+          reveal_directory: '打开所在文件夹',
+          resultCopy: '复制路径',
+          resultCopied: '已复制路径',
+          openFailed: '无法打开：{error}',
+        },
+        en: {
+          title: 'Export Conversation',
+          searchPlaceholder: 'Filter sessions…',
+          includeSub: 'Subagents',
+          currentBtn: 'Current',
+          refreshBtn: 'Refresh',
+          loadingSessions: 'Loading conversations…',
+          loadingOutline: 'Reading conversation…',
+          loadFailed: 'Failed to load: {error}',
+          noSessions: 'No conversations found',
+          fieldFormat: 'Format',
+          fieldTheme: 'Theme',
+          fieldWidth: 'Image width',
+          fieldFontSize: 'Font size',
+          fieldTools: 'Tool calls',
+          fieldThinking: 'Thinking',
+          fieldModel: 'Summary mode',
+          fieldSave: 'Save to',
+          fieldMessages: 'Messages',
+          formatMarkdown: 'Markdown',
+          formatHtml: 'HTML',
+          formatImage: 'Image',
+          imageUnavailable: 'Image export unavailable: {reason}',
+          theme_paper: 'Paper',
+          theme_sepia: 'Sepia',
+          theme_ink: 'Ink',
+          theme_night: 'Night',
+          theme_google: 'Google',
+          theme_antigravity: 'Antigravity',
+          preset_phone: 'Phone',
+          preset_tablet: 'Tablet',
+          preset_desktop: 'Desktop',
+          preset_custom: 'Custom',
+          widthReset: 'Reset',
+          widthHint: 'Output is {px} px wide ({scale}x), {font} px text; long chats auto-paginate cleanly.',
+          widthInvalid: 'Width must be {min}–{max} px.',
+          fontAuto: 'Auto ({n})',
+          fontInvalid: 'Font size must be {min}–{max} px.',
+          level_detailed: 'Detailed',
+          level_summary: 'Summary',
+          level_none: 'None',
+          hint_tools_detailed: 'Keeps tool arguments and clipped output.',
+          hint_tools_summary: 'One concise sentence per tool call.',
+          hint_tools_none: 'Tool calls are hidden.',
+          hint_tools_rule: 'Uses zero-token local rules when no model is chosen.',
+          hint_thinking_detailed: 'Keeps full thinking blocks.',
+          hint_thinking_summary: 'One-sentence digest per thinking block (local 0-token default).',
+          hint_thinking_none: 'Thinking is hidden.',
+          modelLocal: 'No external model (local smart extraction · 0 token)',
+          modelCalls: 'About {n} external model call(s).',
+          saveFolder: 'Local folder',
+          saveDownload: 'Browser download',
+          saveChoose: 'Choose…',
+          savePlaceholder: 'Folder path',
+          msgAll: 'All',
+          msgUsers: 'User only',
+          msgAssistants: 'Assistant only',
+          msgNone: 'None',
+          msgCount: '{n} of {total} messages selected',
+          msgEmpty: 'This session has no messages yet.',
+          roundLabel: 'Round {n}',
+          roleUser: 'User',
+          roleAssistant: 'Assistant',
+          roundImages: '[Images ×{n}]',
+          roundNoReply: '(no text reply)',
+          roundTools: '{n} tool call(s)',
+          roundReasoning: '{n} thinking block(s)',
+          actionCancel: 'Cancel',
+          actionExport: 'Export',
+          exporting: 'Exporting…',
+          exportingImage: 'Rendering retina PNGs…',
+          exportingSummaries: 'Generating summaries…',
+          resultSaved: 'Saved to {path}',
+          resultSavedMany: 'Saved {n} images to {dir}',
+          resultDownloaded: 'Download started: {file}',
+          resultDownloadedMany: 'Downloading {n} files',
+          resultPartial: '{n} model summary batch(es) fell back to local rules.',
+          resultFailed: 'Export failed: {error}',
+          resultOpen: 'Open file',
+          resultOpenFirst: 'Open first image',
+          reveal_finder: 'Show in Finder',
+          reveal_explorer: 'Show in Explorer',
+          reveal_directory: 'Open folder',
+          resultCopy: 'Copy path',
+          resultCopied: 'Copied!',
+          openFailed: 'Could not open: {error}',
+        },
+      };
+
+      function loadPrefs() {
+        try {
+          return JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') || {};
+        } catch {
+          return {};
+        }
+      }
+
+      function savePrefs(next) {
+        try {
+          localStorage.setItem(PREFS_KEY, JSON.stringify(next));
+        } catch {}
+      }
+
+      const prefs = loadPrefs();
+      const state = {
+        uiLang: prefs.uiLang === 'en' ? 'en' : 'zh',
+        sessions: [],
+        defaultSessionId: window.sidecar?.conversationId || '',
+        sessionId: window.sidecar?.conversationId || '',
+        searchQuery: '',
+        includeSubagents: false,
+        loadingSessions: true,
+        outlineStatus: 'loading', // loading | ready | error
+        outline: null,
+        outlineError: '',
+
+        format: ['markdown', 'html', 'image'].includes(prefs.format) ? prefs.format : 'markdown',
+        theme: THEMES.includes(prefs.theme) ? prefs.theme : 'paper',
+        widthText: String(Number.isInteger(prefs.width) ? prefs.width : 640),
+        fontText: Number.isInteger(prefs.fontSize) ? String(prefs.fontSize) : '',
+        tools: 'none',
+        thinking: 'none',
+        modelKey: typeof prefs.modelKey === 'string' ? prefs.modelKey : '',
+        delivery: prefs.delivery === 'download' ? 'download' : 'save',
+        directory: typeof prefs.directory === 'string' ? prefs.directory : '',
+        selected: new Set(),
+
+        job: { status: 'idle' }, // idle | running | done | error
+        notice: null,
+      };
+
+      let activeAbort = null;
+
+      function t(key, vars) {
+        const table = DICT[state.uiLang] || DICT.zh;
+        const raw = table[key] ?? key;
+        if (!vars) return raw;
+        return String(raw).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
+      }
+
+      async function apiPost(path, body = {}, signal) {
+        const fn = window.sidecar?.fetch || fetch;
+        const res = await fn(path, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          signal,
+        });
+        let data;
+        try {
+          data = await res.json();
+        } catch {}
+        if (!res.ok) {
+          throw new Error((data && data.error) ? data.error : `HTTP ${res.status}`);
+        }
+        return data;
+      }
+
+      function routeKey(m) {
+        return m ? `${m.provider}\u0000${m.model}` : '';
+      }
+
+      function autoFontSize(width) {
+        const val = 24 - ((width - 640) * 8) / 560;
+        return Math.round(Math.min(24, Math.max(16, val)));
+      }
+
+      function parseIntIn(txt, range) {
+        if (!range || !/^\d+$/.test(String(txt).trim())) return undefined;
+        const n = Number(txt);
+        return n >= range.min && n <= range.max ? n : undefined;
+      }
+
+      function formatShortTime(isoOrMs) {
+        if (!isoOrMs) return '';
+        const ms = typeof isoOrMs === 'number' ? isoOrMs : Date.parse(isoOrMs);
+        if (!Number.isFinite(ms)) return '';
+        try {
+          return new Intl.DateTimeFormat(state.uiLang === 'zh' ? 'zh-CN' : 'en-CA', {
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+          }).format(ms);
+        } catch {
+          return '';
+        }
+      }
+
+      function messageKeys(rounds) {
+        const keys = [];
+        for (const r of rounds || []) {
+          if (r.hasPrompt) keys.push(`${r.index}:u`);
+          if (r.hasAssistant) keys.push(`${r.index}:a`);
+        }
+        return keys;
+      }
+
+      function escapeHtml(s) {
+        return String(s ?? '')
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;');
+      }
+
+      async function fetchSessions(keepSelection = true) {
+        state.loadingSessions = true;
+        render();
+        try {
+          const data = await apiPost('/api/sessions', {
+            limit: 100,
+            includeSubagents: state.includeSubagents,
+          });
+          state.sessions = data.sessions || [];
+          if (data.defaultConversationId) {
+            state.defaultSessionId = data.defaultConversationId;
+          }
+          const nextId =
+            (keepSelection && state.sessionId) ||
+            state.defaultSessionId ||
+            state.sessions[0]?.conversationId ||
+            '';
+          state.loadingSessions = false;
+          if (nextId && (nextId !== state.sessionId || state.outline === null)) {
+            await selectSession(nextId);
+          } else {
+            render();
+          }
+        } catch (err) {
+          state.loadingSessions = false;
+          state.outlineStatus = 'error';
+          state.outlineError = err.message || String(err);
+          render();
+        }
+      }
+
+      async function selectSession(sessionId) {
+        state.sessionId = sessionId;
+        state.outlineStatus = 'loading';
+        state.outline = null;
+        state.job = { status: 'idle' };
+        state.notice = null;
+        render();
+        try {
+          const data = await apiPost('/api/outline', { sessionId });
+          state.outline = data;
+          state.outlineStatus = 'ready';
+          state.selected = new Set(messageKeys(data.rounds));
+          if (data.save?.defaultDirectory && !state.directory) {
+            state.directory = data.save.defaultDirectory;
+          }
+          if (!data.image?.available && state.format === 'image') {
+            state.format = 'markdown';
+          }
+          render();
+        } catch (err) {
+          state.outlineStatus = 'error';
+          state.outlineError = err.message || String(err);
+          render();
+        }
+      }
+
+      function base64ToBlob(base64, mime) {
+        const bin = atob(base64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return new Blob([bytes], { type: mime });
+      }
+
+      function triggerBrowserDownload(blob, fileName) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      }
+
+      async function handlePickFolder() {
+        try {
+          const res = await apiPost('/api/pick', { directory: state.directory });
+          if (res && typeof res.path === 'string' && res.path) {
+            state.directory = res.path;
+            render();
+          }
+        } catch (err) {
+          state.notice = { tone: 'error', text: t('openFailed', { error: err.message || String(err) }) };
+          render();
+        }
+      }
+
+      async function handleOpenFile(filePath, action) {
+        state.notice = null;
+        render();
+        try {
+          await apiPost('/api/open', { path: filePath, action });
+        } catch (err) {
+          state.notice = { tone: 'error', text: t('openFailed', { error: err.message || String(err) }) };
+          render();
+        }
+      }
+
+      async function handleRunExport() {
+        if (!state.outline) return;
+        const imgInfo = state.outline.image;
+        const width = parseIntIn(state.widthText, imgInfo?.width);
+        const fontSize = state.fontText.trim() === '' ? null : parseIntIn(state.fontText, imgInfo?.fontSize);
+        const models = state.outline.summary?.models || [];
+        const chosenModel = models.find((m) => routeKey(m) === state.modelKey);
+        const wantsSummary = state.tools === 'summary' || state.thinking === 'summary';
+        const usesExternalModel = Boolean(chosenModel && wantsSummary);
+
+        const controller = new AbortController();
+        activeAbort = controller;
+        state.notice = null;
+        state.job = {
+          status: 'running',
+          kind: usesExternalModel ? 'summaries' : state.format === 'image' ? 'image' : 'plain',
+        };
+        render();
+
+        savePrefs({
+          uiLang: state.uiLang,
+          format: state.format,
+          theme: state.theme,
+          delivery: state.delivery,
+          directory: state.directory,
+          width: width ?? 640,
+          fontSize: fontSize === null ? undefined : fontSize,
+          modelKey: state.modelKey,
+        });
+
+        try {
+          let targetDelivery = state.delivery;
+          let targetDir = state.directory;
+          // Match DSH behavior: multi-page PNGs always save once via Host folder picker
+          if (state.format === 'image' && targetDelivery === 'download') {
+            if (state.outline.save?.picker) {
+              const picked = await apiPost('/api/pick', { directory: state.directory }, controller.signal);
+              if (!picked || !picked.path) {
+                state.job = { status: 'idle' };
+                render();
+                return;
+              }
+              targetDelivery = 'save';
+              targetDir = picked.path;
+            } else {
+              targetDelivery = 'save';
+              targetDir = state.directory || state.outline.save?.defaultDirectory;
+            }
+          }
+
+          const parts = (state.outline.rounds || [])
+            .map((r) => ({
+              index: r.index,
+              user: state.selected.has(`${r.index}:u`),
+              assistant: state.selected.has(`${r.index}:a`),
+            }))
+            .filter((p) => p.user || p.assistant);
+
+          const res = await apiPost(
+            '/api/render',
+            {
+              sessionId: state.sessionId,
+              parts,
+              format: state.format,
+              theme: state.theme,
+              tools: state.tools,
+              thinking: state.thinking,
+              model: usesExternalModel ? { provider: chosenModel.provider, model: chosenModel.model } : null,
+              image: state.format === 'image' ? { width, fontSize } : undefined,
+              delivery: targetDelivery,
+              directory: targetDelivery === 'save' ? targetDir : undefined,
+              timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            },
+            controller.signal
+          );
+
+          if (res.delivery === 'download') {
+            for (let i = 0; i < res.files.length; i++) {
+              if (i > 0) await new Promise((r) => setTimeout(r, 350));
+              const f = res.files[i];
+              triggerBrowserDownload(base64ToBlob(f.base64, f.mime), f.name);
+            }
+          }
+          state.job = { status: 'done', result: res };
+          render();
+        } catch (err) {
+          if (controller.signal.aborted || err?.name === 'AbortError') {
+            state.job = { status: 'idle' };
+            render();
+            return;
+          }
+          state.job = { status: 'error', error: err.message || String(err) };
+          render();
+        } finally {
+          if (activeAbort === controller) activeAbort = null;
+        }
+      }
+
+      // Build DOM cleanly & attach interactive listeners
+      function render() {
+        const root = document.getElementById('app');
+        const q = state.searchQuery.trim().toLowerCase();
+        const filteredSessions = state.sessions.filter((s) => {
+          if (!q) return true;
+          return (
+            String(s.title || '').toLowerCase().includes(q) ||
+            String(s.conversationId || '').toLowerCase().includes(q)
+          );
+        });
+        if (
+          state.sessionId &&
+          !filteredSessions.some((s) => s.conversationId === state.sessionId)
+        ) {
+          const cur = state.sessions.find((s) => s.conversationId === state.sessionId);
+          if (cur) filteredSessions.unshift(cur);
+          else {
+            filteredSessions.unshift({
+              conversationId: state.sessionId,
+              title: state.outline?.title || state.sessionId.slice(0, 8),
+              surface: 'app',
+            });
+          }
+        }
+
+        const sessionOptionsHtml = filteredSessions.length === 0
+          ? `<option value="">${escapeHtml(t('noSessions'))}</option>`
+          : filteredSessions
+              .map((s) => {
+                const tag = s.isSubagent ? '[Sub]' : s.surface === 'cli' ? '[CLI]' : '[App]';
+                const when = formatShortTime(s.lastModifiedTime);
+                const label = `${tag} ${s.title}${when ? ` · ${when}` : ''}`;
+                const sel = s.conversationId === state.sessionId ? ' selected' : '';
+                return `<option value="${escapeHtml(s.conversationId)}"${sel}>${escapeHtml(label)}</option>`;
+              })
+              .join('');
+
+        let bodyHtml = '';
+        let canExport = false;
+        const busy = state.job.status === 'running';
+
+        if (state.outlineStatus === 'loading') {
+          bodyHtml = `<div class="form-card"><div class="center-msg">${escapeHtml(t('loadingOutline'))}</div></div>`;
+        } else if (state.outlineStatus === 'error') {
+          bodyHtml = `<div class="form-card"><div class="center-msg" style="color:var(--state-err)">${escapeHtml(t('loadFailed', { error: state.outlineError }))}</div></div>`;
+        } else if (state.outline) {
+          const ready = state.outline;
+          const imgInfo = ready.image;
+          const sumInfo = ready.summary;
+          const saveInfo = ready.save;
+          const rounds = ready.rounds || [];
+          const allKeys = messageKeys(rounds);
+          const width = parseIntIn(state.widthText, imgInfo.width);
+          const fontAuto = width ? autoFontSize(width) : 24;
+          const fontSize = state.fontText.trim() === '' ? null : parseIntIn(state.fontText, imgInfo.fontSize);
+          const presetId = (imgInfo.presets.find((p) => p.width === width) || {}).id || 'custom';
+          const wantsSummary = state.tools === 'summary' || state.thinking === 'summary';
+          const models = sumInfo.models || [];
+          const chosenModel = models.find((m) => routeKey(m) === state.modelKey);
+          const usesExternalModel = Boolean(chosenModel && wantsSummary);
+          const estimate = usesExternalModel
+            ? rounds
+                .filter((r) => state.selected.has(`${r.index}:a`))
+                .reduce((acc, r) => acc + (r.activityGroups || 0), 0)
+            : 0;
+          const imageInvalid = state.format === 'image' && (width === undefined || fontSize === undefined);
+          const saving = state.delivery === 'save';
+          canExport =
+            state.selected.size > 0 &&
+            !busy &&
+            !imageInvalid &&
+            !(saving && state.directory.trim() === '');
+
+          const segBtn = (group, val, label, extra = {}) => {
+            const checked = extra.current === val ? 'true' : 'false';
+            const dis = extra.disabled ? ' disabled' : '';
+            const swatch = extra.swatch ? `<span class="swatch ${escapeHtml(extra.swatch)}"></span>` : '';
+            return `<button type="button" role="radio" data-seg="${group}" data-val="${escapeHtml(val)}" aria-checked="${checked}"${dis}>${swatch}${escapeHtml(label)}</button>`;
+          };
+
+          const formatRow = `
+            <div class="cxp-row">
+              <div class="cxp-label">${escapeHtml(t('fieldFormat'))}</div>
+              <div class="cxp-field">
+                <div class="cxp-seg" role="radiogroup" aria-label="${escapeHtml(t('fieldFormat'))}">
+                  ${segBtn('format', 'markdown', t('formatMarkdown'), { current: state.format })}
+                  ${segBtn('format', 'html', t('formatHtml'), { current: state.format })}
+                  ${segBtn('format', 'image', t('formatImage'), { current: state.format, disabled: !imgInfo.available })}
+                </div>
+                ${!imgInfo.available ? `<div class="cxp-hint warn">${escapeHtml(t('imageUnavailable', { reason: imgInfo.reason || '' }))}</div>` : ''}
+              </div>
+            </div>`;
+
+          const themeRow = state.format === 'markdown' ? '' : `
+            <div class="cxp-row">
+              <div class="cxp-label">${escapeHtml(t('fieldTheme'))}</div>
+              <div class="cxp-field">
+                <div class="cxp-seg" role="radiogroup" aria-label="${escapeHtml(t('fieldTheme'))}">
+                  ${THEMES.map((th) => segBtn('theme', th, t(`theme_${th}`), { current: state.theme, swatch: th })).join('')}
+                </div>
+              </div>
+            </div>`;
+
+          let widthHintHtml = '';
+          if (state.format === 'image') {
+            if (width === undefined) {
+              widthHintHtml = `<div class="cxp-hint error">${escapeHtml(t('widthInvalid', imgInfo.width))}</div>`;
+            } else if (fontSize === undefined) {
+              widthHintHtml = `<div class="cxp-hint error">${escapeHtml(t('fontInvalid', imgInfo.fontSize))}</div>`;
+            } else {
+              widthHintHtml = `<div class="cxp-hint">${escapeHtml(t('widthHint', { px: width * imgInfo.scale, scale: imgInfo.scale, font: fontSize ?? fontAuto }))}</div>`;
+            }
+          }
+
+          const widthRow = state.format !== 'image' ? '' : `
+            <div class="cxp-row">
+              <div class="cxp-label">${escapeHtml(t('fieldWidth'))}</div>
+              <div class="cxp-field">
+                <div class="cxp-seg" role="radiogroup" aria-label="${escapeHtml(t('fieldWidth'))}">
+                  ${imgInfo.presets.map((p) => segBtn('preset', p.id, `${t(`preset_${p.id}`)} ${p.width}`, { current: presetId })).join('')}
+                  ${segBtn('preset', 'custom', t('preset_custom'), { current: presetId })}
+                </div>
+                <div class="cxp-inline">
+                  <input id="inp-width" class="cxp-input num" inputmode="numeric" aria-label="${escapeHtml(t('fieldWidth'))}" value="${escapeHtml(state.widthText)}">
+                  <span class="cxp-unit">px</span>
+                  <span class="cxp-unit">${escapeHtml(t('fieldFontSize'))}</span>
+                  <input id="inp-font" class="cxp-input num" inputmode="numeric" aria-label="${escapeHtml(t('fieldFontSize'))}" placeholder="${escapeHtml(t('fontAuto', { n: fontAuto }))}" value="${escapeHtml(state.fontText)}">
+                  <span class="cxp-unit">px</span>
+                  <button type="button" class="cxp-link" id="btn-reset-width">${escapeHtml(t('widthReset'))}</button>
+                </div>
+                ${widthHintHtml}
+              </div>
+            </div>`;
+
+          const toolsRow = `
+            <div class="cxp-row">
+              <div class="cxp-label">${escapeHtml(t('fieldTools'))}</div>
+              <div class="cxp-field">
+                <div class="cxp-seg" role="radiogroup" aria-label="${escapeHtml(t('fieldTools'))}">
+                  ${LEVELS.map((lv) => segBtn('tools', lv, t(`level_${lv}`), { current: state.tools })).join('')}
+                </div>
+                <div class="cxp-hint">${escapeHtml(t(`hint_tools_${state.tools}`) + (state.tools === 'summary' && !usesExternalModel ? ' ' + t('hint_tools_rule') : ''))}</div>
+              </div>
+            </div>`;
+
+          const thinkingRow = `
+            <div class="cxp-row">
+              <div class="cxp-label">${escapeHtml(t('fieldThinking'))}</div>
+              <div class="cxp-field">
+                <div class="cxp-seg" role="radiogroup" aria-label="${escapeHtml(t('fieldThinking'))}">
+                  ${LEVELS.map((lv) => segBtn('thinking', lv, t(`level_${lv}`), { current: state.thinking })).join('')}
+                </div>
+                <div class="cxp-hint">${escapeHtml(t(`hint_thinking_${state.thinking}`))}</div>
+              </div>
+            </div>`;
+
+          const modelRow = !(wantsSummary && models.length > 0) ? '' : `
+            <div class="cxp-row">
+              <div class="cxp-label">${escapeHtml(t('fieldModel'))}</div>
+              <div class="cxp-field">
+                <select id="sel-model" class="cxp-select" aria-label="${escapeHtml(t('fieldModel'))}">
+                  <option value="">${escapeHtml(t('modelLocal'))}</option>
+                  ${models.map((m) => {
+                    const k = routeKey(m);
+                    return `<option value="${escapeHtml(k)}"${k === state.modelKey ? ' selected' : ''}>${escapeHtml(m.label)}</option>`;
+                  }).join('')}
+                </select>
+                ${estimate > 0 ? `<div class="cxp-hint">${escapeHtml(t('modelCalls', { n: estimate }))}</div>` : ''}
+              </div>
+            </div>`;
+
+          const saveRow = `
+            <div class="cxp-row">
+              <div class="cxp-label">${escapeHtml(t('fieldSave'))}</div>
+              <div class="cxp-field">
+                <div class="cxp-seg" role="radiogroup" aria-label="${escapeHtml(t('fieldSave'))}">
+                  ${segBtn('delivery', 'save', t('saveFolder'), { current: state.delivery })}
+                  ${segBtn('delivery', 'download', t('saveDownload'), { current: state.delivery })}
+                </div>
+                ${state.delivery === 'save' ? `
+                  <div class="cxp-inline">
+                    <input id="inp-dir" class="cxp-input path" spellcheck="false" placeholder="${escapeHtml(t('savePlaceholder'))}" value="${escapeHtml(state.directory)}">
+                    ${saveInfo.picker ? `<button type="button" class="cxp-btn outline sm" id="btn-pick-dir">${escapeHtml(t('saveChoose'))}</button>` : ''}
+                  </div>
+                ` : ''}
+              </div>
+            </div>`;
+
+          const roundsListHtml = rounds.length === 0
+            ? `<div class="cxp-hint">${escapeHtml(t('msgEmpty'))}</div>`
+            : `
+              <div class="cxp-bar">
+                <span>${escapeHtml(t('msgCount', { n: state.selected.size, total: allKeys.length }))}</span>
+                <button type="button" class="cxp-link" data-sel-mode="all">${escapeHtml(t('msgAll'))}</button>
+                <button type="button" class="cxp-link" data-sel-mode="users">${escapeHtml(t('msgUsers'))}</button>
+                <button type="button" class="cxp-link" data-sel-mode="assistants">${escapeHtml(t('msgAssistants'))}</button>
+                <button type="button" class="cxp-link" data-sel-mode="none">${escapeHtml(t('msgNone'))}</button>
+              </div>
+              <div class="cxp-list" role="group" aria-label="${escapeHtml(t('fieldMessages'))}">
+                ${rounds.map((r) => {
+                  const uKey = `${r.index}:u`;
+                  const aKey = `${r.index}:a`;
+                  const meta = [];
+                  if (r.tools > 0) meta.push(t('roundTools', { n: r.tools }));
+                  if (r.reasoning > 0) meta.push(t('roundReasoning', { n: r.reasoning }));
+                  const promptPreview = r.prompt || (r.images > 0 ? t('roundImages', { n: r.images }) : '');
+                  const headText = [t('roundLabel', { n: r.index + 1 }), formatShortTime(r.time)].filter(Boolean).join(' · ');
+                  return `
+                    <div class="cxp-round">
+                      <div class="cxp-round-head">${escapeHtml(headText)}</div>
+                      ${r.hasPrompt ? `
+                        <label class="cxp-msg chk-wrap">
+                          <input type="checkbox" class="visually-hidden" data-msg-key="${uKey}"${state.selected.has(uKey) ? ' checked' : ''}>
+                          <span class="cxp-role">${escapeHtml(t('roleUser'))}</span>
+                          <div class="cxp-msg-main">
+                            <div class="cxp-msg-text" title="${escapeHtml(promptPreview)}">${escapeHtml(promptPreview)}</div>
+                          </div>
+                        </label>
+                      ` : ''}
+                      ${r.hasAssistant ? `
+                        <label class="cxp-msg chk-wrap">
+                          <input type="checkbox" class="visually-hidden" data-msg-key="${aKey}"${state.selected.has(aKey) ? ' checked' : ''}>
+                          <span class="cxp-role">${escapeHtml(t('roleAssistant'))}</span>
+                          <div class="cxp-msg-main">
+                            <div class="cxp-msg-text" title="${escapeHtml(r.answer || '')}">${escapeHtml(r.answer || t('roundNoReply'))}</div>
+                            ${meta.length > 0 ? `<div class="cxp-msg-meta">${escapeHtml(meta.join(' · '))}</div>` : ''}
+                          </div>
+                        </label>
+                      ` : ''}
+                    </div>`;
+                }).join('')}
+              </div>`;
+
+          const messagesRow = `
+            <div class="cxp-row">
+              <div class="cxp-label">${escapeHtml(t('fieldMessages'))}</div>
+              <div class="cxp-field">${roundsListHtml}</div>
+            </div>`;
+
+          bodyHtml = `<div class="form-card">${formatRow}${themeRow}${widthRow}${toolsRow}${thinkingRow}${modelRow}${saveRow}${messagesRow}</div>`;
+        }
+
+        // Result banner
+        let resultHtml = '';
+        if (state.job.status === 'done') {
+          const val = state.job.result;
+          const files = val.files || [];
+          const lines = [];
+          if (val.delivery === 'save') {
+            lines.push(
+              files.length === 1
+                ? t('resultSaved', { path: files[0].path })
+                : t('resultSavedMany', { n: files.length, dir: val.directory })
+            );
+          } else {
+            lines.push(
+              files.length === 1
+                ? t('resultDownloaded', { file: files[0].name })
+                : t('resultDownloadedMany', { n: files.length })
+            );
+          }
+          if (val.summaryFailures > 0) {
+            lines.push(t('resultPartial', { n: val.summaryFailures }));
+          }
+          const first = files[0];
+          const fmKey = `reveal_${state.outline?.save?.fileManager || 'directory'}`;
+          resultHtml = `
+            <div class="cxp-result" role="status">
+              ${lines.map((ln, idx) => `<div class="cxp-result-text${idx === 0 ? ' ok' : ''}">${escapeHtml(ln)}</div>`).join('')}
+              ${val.delivery === 'save' && first ? `
+                <div class="cxp-result-actions">
+                  <button type="button" class="cxp-btn outline sm" id="btn-open-file">${escapeHtml(files.length === 1 ? t('resultOpen') : t('resultOpenFirst'))}</button>
+                  <button type="button" class="cxp-btn outline sm" id="btn-reveal-file">${escapeHtml(t(fmKey))}</button>
+                  <button type="button" class="cxp-btn outline sm" id="btn-copy-path">${escapeHtml(t('resultCopy'))}</button>
+                </div>
+              ` : ''}
+              ${state.notice ? `<div class="cxp-result-text ${escapeHtml(state.notice.tone)}">${escapeHtml(state.notice.text)}</div>` : ''}
+            </div>`;
+        } else if (state.job.status === 'error') {
+          resultHtml = `<div class="cxp-result" role="alert"><div class="cxp-result-text error">${escapeHtml(t('resultFailed', { error: state.job.error }))}</div></div>`;
+        } else if (state.notice) {
+          resultHtml = `<div class="cxp-result" role="alert"><div class="cxp-result-text ${escapeHtml(state.notice.tone)}">${escapeHtml(state.notice.text)}</div></div>`;
+        }
+
+        const busyText =
+          state.job.kind === 'summaries'
+            ? t('exportingSummaries')
+            : state.job.kind === 'image'
+              ? t('exportingImage')
+              : t('exporting');
+
+        const showJumpCurrent =
+          state.defaultSessionId && state.defaultSessionId !== state.sessionId;
+
+        root.innerHTML = `
+          <div class="session-card">
+            <div class="session-top">
+              <h1 class="brand-title">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M3 9.5v2.75c0 .69.56 1.25 1.25 1.25h7.5c.69 0 1.25-.56 1.25-1.25V9.5"/>
+                  <path d="M8 2.5v7.5"/>
+                  <path d="M5.25 7.25 8 10l2.75-2.75"/>
+                </svg>
+                <span>${escapeHtml(t('title'))}</span>
+              </h1>
+              <div class="top-tools">
+                <label class="cxp-check-row chk-wrap">
+                  <input type="checkbox" id="chk-subagents" class="visually-hidden"${state.includeSubagents ? ' checked' : ''}>
+                  <span>${escapeHtml(t('includeSub'))}</span>
+                </label>
+                ${showJumpCurrent ? `<button type="button" class="cxp-btn outline sm" id="btn-current">${escapeHtml(t('currentBtn'))}</button>` : ''}
+                <button type="button" class="cxp-btn outline sm" id="btn-refresh">${escapeHtml(t('refreshBtn'))}</button>
+                <button type="button" class="cxp-btn outline sm" id="btn-lang">${state.uiLang === 'zh' ? 'EN' : '中文'}</button>
+              </div>
+            </div>
+            <div class="session-picker-row">
+              <input id="inp-search" class="cxp-input search-input" placeholder="${escapeHtml(t('searchPlaceholder'))}" value="${escapeHtml(state.searchQuery)}">
+              <select id="sel-session" class="cxp-select session-select" aria-label="Session">
+                ${sessionOptionsHtml}
+              </select>
+            </div>
+          </div>
+
+          ${bodyHtml}
+          ${resultHtml}
+
+          <div class="cxp-footer">
+            <div class="cxp-status" role="status">${busy ? escapeHtml(busyText) : escapeHtml(state.outline?.models?.join(' · ') || '')}</div>
+            <div class="cxp-footer-btns">
+              ${busy ? `<button type="button" class="cxp-btn outline" id="btn-cancel">${escapeHtml(t('actionCancel'))}</button>` : ''}
+              <button type="button" class="cxp-btn primary" id="btn-export"${canExport ? '' : ' disabled'}>${escapeHtml(busy ? busyText : t('actionExport'))}</button>
+            </div>
+          </div>
+        `;
+
+        bindEvents();
+      }
+
+      function bindEvents() {
+        document.getElementById('chk-subagents')?.addEventListener('change', (e) => {
+          state.includeSubagents = e.target.checked;
+          fetchSessions(true);
+        });
+
+        document.getElementById('btn-current')?.addEventListener('click', () => {
+          if (state.defaultSessionId) selectSession(state.defaultSessionId);
+        });
+
+        document.getElementById('btn-refresh')?.addEventListener('click', () => {
+          fetchSessions(true);
+          if (state.sessionId) selectSession(state.sessionId);
+        });
+
+        document.getElementById('btn-lang')?.addEventListener('click', () => {
+          state.uiLang = state.uiLang === 'zh' ? 'en' : 'zh';
+          savePrefs({ ...loadPrefs(), uiLang: state.uiLang });
+          render();
+        });
+
+        const searchEl = document.getElementById('inp-search');
+        searchEl?.addEventListener('input', (e) => {
+          const pos = e.target.selectionStart;
+          state.searchQuery = e.target.value;
+          render();
+          const nextEl = document.getElementById('inp-search');
+          if (nextEl) {
+            nextEl.focus();
+            nextEl.setSelectionRange(pos, pos);
+          }
+        });
+
+        document.getElementById('sel-session')?.addEventListener('change', (e) => {
+          if (e.target.value) selectSession(e.target.value);
+        });
+
+        document.querySelectorAll('[data-seg]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const grp = btn.getAttribute('data-seg');
+            const val = btn.getAttribute('data-val');
+            if (grp === 'format') state.format = val;
+            else if (grp === 'theme') state.theme = val;
+            else if (grp === 'tools') state.tools = val;
+            else if (grp === 'thinking') state.thinking = val;
+            else if (grp === 'delivery') state.delivery = val;
+            else if (grp === 'preset') {
+              const p = state.outline?.image?.presets?.find((x) => x.id === val);
+              if (p) state.widthText = String(p.width);
+            }
+            render();
+          });
+        });
+
+        const widthEl = document.getElementById('inp-width');
+        widthEl?.addEventListener('input', (e) => {
+          state.widthText = e.target.value.replace(/[^\d]/g, '');
+          render();
+          const el = document.getElementById('inp-width');
+          el?.focus();
+        });
+
+        const fontEl = document.getElementById('inp-font');
+        fontEl?.addEventListener('input', (e) => {
+          state.fontText = e.target.value.replace(/[^\d]/g, '');
+          render();
+          const el = document.getElementById('inp-font');
+          el?.focus();
+        });
+
+        document.getElementById('btn-reset-width')?.addEventListener('click', () => {
+          state.widthText = String(state.outline?.image?.width?.default || 640);
+          state.fontText = '';
+          render();
+        });
+
+        document.getElementById('sel-model')?.addEventListener('change', (e) => {
+          state.modelKey = e.target.value;
+          render();
+        });
+
+        const dirEl = document.getElementById('inp-dir');
+        dirEl?.addEventListener('input', (e) => {
+          const pos = e.target.selectionStart;
+          state.directory = e.target.value;
+          render();
+          const next = document.getElementById('inp-dir');
+          if (next) {
+            next.focus();
+            next.setSelectionRange(pos, pos);
+          }
+        });
+
+        document.getElementById('btn-pick-dir')?.addEventListener('click', handlePickFolder);
+
+        document.querySelectorAll('[data-sel-mode]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const mode = btn.getAttribute('data-sel-mode');
+            const all = messageKeys(state.outline?.rounds || []);
+            if (mode === 'all') state.selected = new Set(all);
+            else if (mode === 'users') state.selected = new Set(all.filter((k) => k.endsWith(':u')));
+            else if (mode === 'assistants') state.selected = new Set(all.filter((k) => k.endsWith(':a')));
+            else state.selected = new Set();
+            render();
+          });
+        });
+
+        document.querySelectorAll('[data-msg-key]').forEach((chk) => {
+          chk.addEventListener('change', () => {
+            const k = chk.getAttribute('data-msg-key');
+            if (state.selected.has(k)) state.selected.delete(k);
+            else state.selected.add(k);
+            render();
+          });
+        });
+
+        document.getElementById('btn-export')?.addEventListener('click', handleRunExport);
+        document.getElementById('btn-cancel')?.addEventListener('click', () => {
+          activeAbort?.abort();
+        });
+
+        document.getElementById('btn-open-file')?.addEventListener('click', () => {
+          const first = state.job.result?.files?.[0];
+          if (first) handleOpenFile(first.path, 'open');
+        });
+        document.getElementById('btn-reveal-file')?.addEventListener('click', () => {
+          const first = state.job.result?.files?.[0];
+          if (first) handleOpenFile(first.path, 'reveal');
+        });
+        document.getElementById('btn-copy-path')?.addEventListener('click', () => {
+          const val = state.job.result;
+          const first = val?.files?.[0];
+          const textToCopy = val?.files?.length === 1 ? first?.path : val?.directory;
+          if (textToCopy && navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(textToCopy).then(
+              () => {
+                state.notice = { tone: 'ok', text: t('resultCopied') };
+                render();
+              },
+              (err) => {
+                state.notice = { tone: 'error', text: String(err) };
+                render();
+              }
+            );
+          }
+        });
+      }
+
+      fetchSessions(false);
+    })();
+  </script>
+</body>
+</html>

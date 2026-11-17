@@ -24,11 +24,18 @@ if (existsSync(file)) {
   try { cfg = JSON.parse(readFileSync(file, "utf-8")); } catch {}
 }
 if (!Array.isArray(cfg.entries)) cfg.entries = [];
-const exists = cfg.entries.some(e => e.path === parentDir && (!e.include_only || e.include_only.includes(dirName)));
-if (!exists) {
-  cfg.entries.push({ path: parentDir, include_only: [dirName] });
-  writeFileSync(file, JSON.stringify(cfg, null, 2) + "\n");
+let matchedEntry = cfg.entries.find(e => e.path === parentDir && Array.isArray(e.include_only));
+if (matchedEntry) {
+  if (!matchedEntry.include_only.includes(dirName)) {
+    matchedEntry.include_only.push(dirName);
+  }
+} else {
+  const alreadyCovered = cfg.entries.some(e => e.path === parentDir && !e.include_only);
+  if (!alreadyCovered) {
+    cfg.entries.push({ path: parentDir, include_only: [dirName] });
+  }
 }
+writeFileSync(file, JSON.stringify(cfg, null, 2) + "\n");
 ' "$PLUGINS_JSON" "$PARENT_DIR" "$PLUGIN_DIR_NAME"
 
 # 2. Install `agy-stats` CLI wrapper into ~/.local/bin/agy-stats
@@ -39,13 +46,13 @@ exec "$REPO_DIR/scripts/run-node.sh" "$REPO_DIR/scripts/agy-stats.mjs" "\$@"
 EOF
 chmod +x "$HOME/.local/bin/agy-stats"
 
-# 3. Install `agy` statusLine script into ~/.antigravity/status.py (with backup)
+# 3. Install `agy` statusLine script into ~/.antigravity/status.py (with backup, symlinked for live sync)
 mkdir -p "$HOME/.antigravity"
-if [ -f "$HOME/.antigravity/status.py" ] && [ ! -f "$HOME/.antigravity/status.py.bak" ]; then
+if [ -f "$HOME/.antigravity/status.py" ] && [ ! -L "$HOME/.antigravity/status.py" ] && [ ! -f "$HOME/.antigravity/status.py.bak" ]; then
   cp "$HOME/.antigravity/status.py" "$HOME/.antigravity/status.py.bak"
 fi
-cp "$REPO_DIR/scripts/agy-statusline.py" "$HOME/.antigravity/status.py"
-chmod +x "$HOME/.antigravity/status.py"
+ln -sf "$REPO_DIR/scripts/agy-statusline.py" "$HOME/.antigravity/status.py"
+chmod +x "$REPO_DIR/scripts/agy-statusline.py"
 
 echo "✅ antigravity-model-details installed successfully!"
 echo "   - Plugin registered in: $PLUGINS_JSON"

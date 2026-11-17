@@ -145,6 +145,22 @@ def _decode_usage(buf: bytes) -> dict:
     return u
 
 
+def _decode_duration(buf: bytes) -> float:
+    secs = 0
+    nanos = 0
+    for f, wt, v in _scan_fields(buf):
+        if wt == 0:
+            if f == 1:
+                secs = int(v)
+                if secs >= (1 << 63):
+                    secs -= (1 << 64)
+            elif f == 2:
+                nanos = int(v)
+                if nanos >= (1 << 31):
+                    nanos -= (1 << 32)
+    return float(secs) + float(nanos) / 1e9
+
+
 def _decode_gen_metadata_blob(blob: bytes) -> dict:
     step_indices = []
     chat_model = None
@@ -157,6 +173,8 @@ def _decode_gen_metadata_blob(blob: bytes) -> dict:
                 "max_ctx": 0,
                 "response_model": "",
                 "display_name": "",
+                "ttft": None,
+                "streaming": None,
             }
             for cf, cwt, cv in _scan_fields(v):
                 if cwt == 2 and cf == 4:
@@ -169,6 +187,10 @@ def _decode_gen_metadata_blob(blob: bytes) -> dict:
                                     cm["est_ctx"] = int(xv)
                                 elif xwt == 0 and xf == 4:
                                     cm["max_ctx"] = int(xv)
+                elif cwt == 2 and cf == 11:
+                    cm["ttft"] = _decode_duration(cv)
+                elif cwt == 2 and cf == 12:
+                    cm["streaming"] = _decode_duration(cv)
                 elif cwt == 2 and cf == 19:
                     cm["response_model"] = cv.decode("utf-8", "replace")
                 elif cwt == 2 and cf == 21:
@@ -250,8 +272,11 @@ def _analyze_single_db(conv_id: str) -> dict:
     except Exception:
         return None
 
-    calls = []
-    tot = {"calls": 0, "in": 0, "cache_read": 0, "cache_write": 0, "out": 0, "think": 0, "resp": 0, "total": 0}
+    tot = {
+        "calls": 0, "in": 0, "cache_read": 0, "cache_write": 0,
+        "out": 0, "think": 0, "resp": 0, "total": 0,
+        "ttft_calls": 0, "ttft_sum": 0.0, "timed_out": 0, "timed_sec": 0.0,
+    }
     last_user_step = user_steps[-1] if user_steps else 0
     turn_num = max(1, len(user_steps))
     latest_turn = {"turn": turn_num, "calls": 0, "in": 0, "cache_read": 0, "cache_write": 0, "out": 0, "think": 0, "resp": 0, "total": 0}
@@ -280,6 +305,17 @@ def _analyze_single_db(conv_id: str) -> dict:
         tot["think"] += u["think"]
         tot["resp"] += u["resp"]
         tot["total"] += c_tot
+
+        ttft_val = cm.get("ttft")
+        stream_val = cm.get("streaming")
+        if ttft_val is not None:
+            tot["ttft_calls"] += 1
+            tot["ttft_sum"] += ttft_val
+        if ttft_val is not None or stream_val is not None:
+            e2e_sec = (ttft_val or 0.0) + (stream_val or 0.0)
+            if e2e_sec > 0.2 and c_out > 0:
+                tot["timed_out"] += c_out
+                tot["timed_sec"] += e2e_sec
 
         if first_step >= last_user_step:
             latest_turn["calls"] += 1
@@ -311,18 +347,37 @@ def get_rich_session_stats(conv_id: str) -> dict:
         return None
 
     sub_ids = _find_subagent_ids(conv_id)
-    sub_tot = {"count": len(sub_ids), "calls": 0, "total": 0}
+    sub_tot = {
+        "count": len(sub_ids), "calls": 0, "total": 0,
+        "ttft_calls": 0, "ttft_sum": 0.0, "timed_out": 0, "timed_sec": 0.0,
+    }
     for sid in sub_ids:
         s_res = _analyze_single_db(sid)
         if s_res:
-            sub_tot["calls"] += s_res["tot"]["calls"]
-            sub_tot["total"] += s_res["tot"]["total"]
+            st = s_res["tot"]
+            sub_tot["calls"] += st["calls"]
+            sub_tot["total"] += st["total"]
+            sub_tot["ttft_calls"] += st["ttft_calls"]
+            sub_tot["ttft_sum"] += st["ttft_sum"]
+            sub_tot["timed_out"] += st["timed_out"]
+            sub_tot["timed_sec"] += st["timed_sec"]
+
+    mt = main["tot"]
+    g_ttft_calls = mt["ttft_calls"] + sub_tot["ttft_calls"]
+    g_ttft_sum = mt["ttft_sum"] + sub_tot["ttft_sum"]
+    g_timed_out = mt["timed_out"] + sub_tot["timed_out"]
+    g_timed_sec = mt["timed_sec"] + sub_tot["timed_sec"]
+
+    avg_ttft = (g_ttft_sum / g_ttft_calls) if g_ttft_calls > 0 else None
+    avg_e2e_tps = (g_timed_out / g_timed_sec) if (g_timed_sec > 0.2 and g_timed_out > 0) else None
 
     return {
         "main": main,
         "sub": sub_tot,
-        "grand_total": main["tot"]["total"] + sub_tot["total"],
-        "grand_calls": main["tot"]["calls"] + sub_tot["calls"],
+        "grand_total": mt["total"] + sub_tot["total"],
+        "grand_calls": mt["calls"] + sub_tot["calls"],
+        "avg_ttft": avg_ttft,
+        "avg_e2e_tps": avg_e2e_tps,
     }
 
 
@@ -336,9 +391,10 @@ def format_tokens(n: int) -> str:
 
 
 def context_color_used(used_pct: float) -> str:
-    if used_pct >= 85:
+    # Aligned with Antigravity auto-compaction (~95%-100% of max_ctx)
+    if used_pct >= 92:
         return RED
-    elif used_pct >= 70:
+    elif used_pct >= 80:
         return ORANGE
     return GREEN
 
@@ -697,7 +753,13 @@ def render(data: dict) -> str:
                 f"Σ 会话累计 {BOLD}{WHITE}{format_tokens(main_tot)}{RESET} "
                 f"{GRAY}({rich['main']['tot']['calls']}次调用){RESET}"
             )
-        row2 = f"  {turn_part}{SEP}{hier_part}"
+        perf_items = []
+        if rich.get("avg_ttft") is not None:
+            perf_items.append(f"TTFT {CYAN}{rich['avg_ttft']:.1f}s{RESET}")
+        if rich.get("avg_e2e_tps") is not None:
+            perf_items.append(f"E2E {GREEN}{rich['avg_e2e_tps']:.1f}t/s{RESET}")
+        perf_part = f"{SEP}{' · '.join(perf_items)}" if perf_items else ""
+        row2 = f"  {turn_part}{SEP}{hier_part}{perf_part}"
     else:
         tip = get_tip()
         row2 = f"  {BLUE}💡 {tip}{RESET}"

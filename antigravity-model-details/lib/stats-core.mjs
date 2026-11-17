@@ -483,9 +483,30 @@ function createEmptyAccumulator() {
     cacheHitRate: 0,
     retryCount: 0,
     errorCount: 0,
+    ttftCallCount: 0,
     totalTtftSeconds: 0,
     totalStreamingSeconds: 0,
+    totalE2eSeconds: 0,
+    timedOutputTokens: 0,
+    timedCallSeconds: 0,
+    avgTtftSeconds: null,
+    avgE2eTps: null,
   };
+}
+
+function recomputeDerivedMetrics(acc) {
+  acc.cacheHitRate =
+    acc.totalInputTokens > 0
+      ? Math.round((acc.cacheReadTokens / acc.totalInputTokens) * 1000) / 10
+      : 0;
+  acc.avgTtftSeconds =
+    acc.ttftCallCount > 0
+      ? Math.round((acc.totalTtftSeconds / acc.ttftCallCount) * 100) / 100
+      : null;
+  acc.avgE2eTps =
+    acc.timedCallSeconds > 0.2 && acc.timedOutputTokens > 0
+      ? Math.round((acc.timedOutputTokens / acc.timedCallSeconds) * 10) / 10
+      : null;
 }
 
 function addCallToAccumulator(acc, call) {
@@ -500,12 +521,21 @@ function addCallToAccumulator(acc, call) {
   acc.totalTokens += call.totalTokens;
   acc.retryCount += call.retryCount;
   if (call.hasError) acc.errorCount += 1;
-  if (call.ttftSeconds) acc.totalTtftSeconds += call.ttftSeconds;
-  if (call.streamingSeconds) acc.totalStreamingSeconds += call.streamingSeconds;
-  acc.cacheHitRate =
-    acc.totalInputTokens > 0
-      ? Math.round((acc.cacheReadTokens / acc.totalInputTokens) * 1000) / 10
-      : 0;
+  if (call.ttftSeconds !== null && call.ttftSeconds !== undefined) {
+    acc.ttftCallCount += 1;
+    acc.totalTtftSeconds += call.ttftSeconds;
+  }
+  if (call.streamingSeconds !== null && call.streamingSeconds !== undefined) {
+    acc.totalStreamingSeconds += call.streamingSeconds;
+  }
+  if (call.e2eSeconds !== null && call.e2eSeconds !== undefined) {
+    acc.totalE2eSeconds += call.e2eSeconds;
+    if (call.e2eSeconds > 0.2 && call.outputTokens > 0) {
+      acc.timedOutputTokens += call.outputTokens;
+      acc.timedCallSeconds += call.e2eSeconds;
+    }
+  }
+  recomputeDerivedMetrics(acc);
 }
 
 function mergeAccumulators(target, source) {
@@ -520,12 +550,13 @@ function mergeAccumulators(target, source) {
   target.totalTokens += source.totalTokens;
   target.retryCount += source.retryCount;
   target.errorCount += source.errorCount;
-  target.totalTtftSeconds += source.totalTtftSeconds;
-  target.totalStreamingSeconds += source.totalStreamingSeconds;
-  target.cacheHitRate =
-    target.totalInputTokens > 0
-      ? Math.round((target.cacheReadTokens / target.totalInputTokens) * 1000) / 10
-      : 0;
+  target.ttftCallCount += source.ttftCallCount || 0;
+  target.totalTtftSeconds += source.totalTtftSeconds || 0;
+  target.totalStreamingSeconds += source.totalStreamingSeconds || 0;
+  target.totalE2eSeconds += source.totalE2eSeconds || 0;
+  target.timedOutputTokens += source.timedOutputTokens || 0;
+  target.timedCallSeconds += source.timedCallSeconds || 0;
+  recomputeDerivedMetrics(target);
 }
 
 /**
@@ -661,11 +692,13 @@ export async function analyzeSingleConversation(conversationId, catalogEntry = n
 
     const ttftSeconds = parseDurationSeconds(cm.timeToFirstToken);
     const streamingSeconds = parseDurationSeconds(cm.streamingDuration);
-    const totalCallSeconds = (ttftSeconds || 0) + (streamingSeconds || 0);
-    const tokensPerSecond =
-      totalCallSeconds > 0.2 && outputTokens > 0
+    const hasTiming = ttftSeconds !== null || streamingSeconds !== null;
+    const totalCallSeconds = hasTiming ? (ttftSeconds || 0) + (streamingSeconds || 0) : null;
+    const e2eTokensPerSecond =
+      totalCallSeconds !== null && totalCallSeconds > 0.2 && outputTokens > 0
         ? Math.round((outputTokens / totalCallSeconds) * 10) / 10
         : null;
+    const tokensPerSecond = e2eTokensPerSecond;
 
     const retryInfos = Array.isArray(cm.retryInfos) ? cm.retryInfos : [];
     const retryCount = Math.max(0, retryInfos.length - 1);
@@ -714,6 +747,8 @@ export async function analyzeSingleConversation(conversationId, catalogEntry = n
       ttftSeconds: ttftSeconds !== null ? Math.round(ttftSeconds * 100) / 100 : null,
       streamingSeconds:
         streamingSeconds !== null ? Math.round(streamingSeconds * 100) / 100 : null,
+      e2eSeconds: totalCallSeconds !== null ? Math.round(totalCallSeconds * 100) / 100 : null,
+      e2eTokensPerSecond,
       tokensPerSecond,
       retryCount,
       hasError,
@@ -822,7 +857,8 @@ export async function analyzeSingleConversation(conversationId, catalogEntry = n
     actualPercent: actualPct,
     estimatedPercent: estPct,
     remainingTokens: Math.max(0, maxCtx - actualCtx),
-    statusLevel: maxPct >= 85 ? 'critical' : maxPct >= 70 ? 'warning' : 'normal',
+    // Antigravity triggers auto-compaction near ~95%-100% of maxContextTokens; warn early at 80% and alert at 92%.
+    statusLevel: maxPct >= 92 ? 'critical' : maxPct >= 80 ? 'warning' : 'normal',
     breakdownGroups,
   };
 
@@ -992,6 +1028,7 @@ export async function getFullSessionReport(targetConversationId) {
       lastModifiedTime: activeAnalysis.lastModifiedTime,
       dataSource: activeAnalysis.dataSource,
       currentQuota: matchedQuota,
+      summary: activeAnalysis.summary,
       latestTurn: activeAnalysis.latestTurn,
       contextWindow: activeAnalysis.contextWindow,
       turns: activeAnalysis.turns,

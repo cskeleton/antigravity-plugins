@@ -1,0 +1,16 @@
+{
+  "name": "antigravity-conversation-export",
+  "displayName": "Conversation Export",
+  "version": "1.0.0",
+  "description": "将 Antigravity (App & TUI CLI) 会话导出为 Markdown、独立 HTML 或自适应分页高清 PNG 长图。支持逐条筛选用户与助手消息、工具调用与思考过程三档粒度（详细/摘要/无）、六套阅读主题（含专属 Google 昼白与 Antigravity 暗夜主题）及导出后一键打开。",
+  "logo": "assets/logo.svg",
+  "suggestedPrompts": [
+    "打开对话导出面板，选择格式和主题导出当前会话",
+    "把当前会话导出为 Antigravity 暗夜主题的 HTML 文件并包含工具与思考摘要",
+    "将当前对话渲染为 640px 手机阅读宽度的 Google 主题 PNG 图片"
+  ],
+  "author": {
+    "name": "cskeleton",
+    "url": "https://github.com/cskeleton"
+  }
+}

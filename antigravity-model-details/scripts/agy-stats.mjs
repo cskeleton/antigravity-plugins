@@ -63,7 +63,8 @@ function progressBar(pct, width = 22) {
   const clamped = Math.max(0, Math.min(100, Number(pct || 0)));
   const filled = Math.round((clamped / 100) * width);
   const empty = Math.max(0, width - filled);
-  const color = clamped >= 85 ? C.red : clamped >= 70 ? C.orange : C.green;
+  // Aligned with Antigravity auto-compaction (~95%-100% of maxContextTokens)
+  const color = clamped >= 92 ? C.red : clamped >= 80 ? C.orange : C.green;
   return `${color}${'█'.repeat(filled)}${C.dim}${'░'.repeat(empty)}${C.reset}`;
 }
 
@@ -109,11 +110,17 @@ function renderAnsiDashboard(report, showAllSubs = false) {
     q && q.remainingPercent !== null
       ? `${q.remainingPercent < 20 ? C.red : q.remainingPercent < 50 ? C.orange : C.green}${q.remainingPercent}%${C.reset}`
       : `${C.dim}N/A${C.reset}`;
+  const avgTtftStr = tot.avgTtftSeconds !== null && tot.avgTtftSeconds !== undefined ? `${tot.avgTtftSeconds}s` : '-';
+  const avgTpsStr = tot.avgE2eTps !== null && tot.avgE2eTps !== undefined ? `${tot.avgE2eTps} t/s` : '-';
   lines.push(
     `🤖 ${C.bold}返回模型 ID:${C.reset} ${C.yellow}${C.bold}${cw.responseModel}${C.reset}  ` +
       `${C.dim}显示名:${C.reset} ${cw.modelDisplayName}  ` +
       `${C.dim}枚举:${C.reset} ${cw.modelEnum}  ` +
       `${C.dim}配额剩余:${C.reset} ${quotaStr}`
+  );
+  lines.push(
+    `⚡ ${C.bold}会话整体性能:${C.reset} ${C.dim}平均 TTFT:${C.reset} ${C.cyan}${avgTtftStr}${C.reset}  ` +
+      `${C.dim}平均 E2E TPS:${C.reset} ${C.green}${avgTpsStr}${C.reset}`
   );
 
   // 2. Context Window Watermark
@@ -137,26 +144,33 @@ function renderAnsiDashboard(report, showAllSubs = false) {
   // 3. Three-Tier Cost Hierarchy Table
   lines.push(`${C.bold}Σ 开销层级对比（本条消息 vs 主会话 vs Subagents vs 全局总计）${C.reset}`);
   const header =
-    padEndVis(`${C.dim}统计维度${C.reset}`, 22) +
-    padStartVis(`${C.dim}调用次数${C.reset}`, 9) +
-    padStartVis(`${C.dim}新增 Input${C.reset}`, 13) +
-    padStartVis(`${C.dim}缓存 Cached${C.reset}`, 13) +
-    padStartVis(`${C.dim}命中率${C.reset}`, 9) +
-    padStartVis(`${C.dim}总输出 (🧠思考/💬回复)${C.reset}`, 24) +
-    padStartVis(`${C.dim}总计 Token${C.reset}`, 13);
+    padEndVis(`${C.dim}统计维度${C.reset}`, 21) +
+    padStartVis(`${C.dim}调用${C.reset}`, 6) +
+    padStartVis(`${C.dim}新增 Input${C.reset}`, 11) +
+    padStartVis(`${C.dim}缓存 Cached${C.reset}`, 12) +
+    padStartVis(`${C.dim}命中率${C.reset}`, 8) +
+    padStartVis(`${C.dim}输出 (🧠/💬)${C.reset}`, 23) +
+    padStartVis(`${C.dim}总计 Token${C.reset}`, 11) +
+    padStartVis(`${C.dim}平均TTFT${C.reset}`, 9) +
+    padStartVis(`${C.dim}E2E TPS${C.reset}`, 10);
   lines.push(header);
 
+  const fmtTtft = (s) => (s !== null && s !== undefined ? `${s}s` : '-');
+  const fmtTps = (t) => (t !== null && t !== undefined ? `${t} t/s` : '-');
+
   const fmtRow = (label, color, item) =>
-    padEndVis(`${color}${label}${C.reset}`, 22) +
-    padStartVis(fmtNum(item.callCount), 9) +
-    padStartVis(fmtShort(item.inputTokens), 13) +
-    padStartVis(`${C.green}${fmtShort(item.cacheReadTokens)}${C.reset}`, 13) +
-    padStartVis(`${item.cacheHitRate}%`, 9) +
+    padEndVis(`${color}${label}${C.reset}`, 21) +
+    padStartVis(fmtNum(item.callCount), 6) +
+    padStartVis(fmtShort(item.inputTokens), 11) +
+    padStartVis(`${C.green}${fmtShort(item.cacheReadTokens)}${C.reset}`, 12) +
+    padStartVis(`${item.cacheHitRate}%`, 8) +
     padStartVis(
       `${fmtShort(item.outputTokens)} (${fmtShort(item.thinkingTokens)}/${fmtShort(item.responseTokens)})`,
-      24
+      23
     ) +
-    padStartVis(`${C.bold}${fmtShort(item.totalTokens)}${C.reset}`, 13);
+    padStartVis(`${C.bold}${fmtShort(item.totalTokens)}${C.reset}`, 11) +
+    padStartVis(`${C.cyan}${fmtTtft(item.avgTtftSeconds)}${C.reset}`, 9) +
+    padStartVis(`${C.green}${fmtTps(item.avgE2eTps)}${C.reset}`, 10);
 
   if (lt) {
     lines.push(fmtRow(`💬 本条消息 (#${lt.turnIndex})`, C.cyan, lt));
@@ -164,6 +178,23 @@ function renderAnsiDashboard(report, showAllSubs = false) {
   lines.push(fmtRow(`🏠 主会话 (Main)`, C.white, main));
   lines.push(fmtRow(`🌿 Subagents (×${sub.count})`, C.purple, sub));
   lines.push(fmtRow(`🔥 全局总开销 (Total)`, C.yellow + C.bold, tot));
+
+  if (tot.byModel && tot.byModel.length > 0) {
+    lines.push('');
+    lines.push(`${C.bold}🤖 按返回模型 ID 统计（含平均 TTFT 与 E2E TPS）:${C.reset}`);
+    for (const m of tot.byModel) {
+      lines.push(
+        `  • ${C.yellow}${padEndVis(m.responseModel, 22)}${C.reset} ` +
+          `调用:${padStartVis(String(m.callCount), 4)}  ` +
+          `In:${padStartVis(fmtShort(m.inputTokens), 7)}  ` +
+          `Cache:${padStartVis(fmtShort(m.cacheReadTokens), 7)}(${padStartVis(m.cacheHitRate + '%', 5)})  ` +
+          `Out:${padStartVis(fmtShort(m.outputTokens), 7)}  ` +
+          `Σ:${C.bold}${padStartVis(fmtShort(m.totalTokens), 7)}${C.reset}  ` +
+          `TTFT:${C.cyan}${padStartVis(fmtTtft(m.avgTtftSeconds), 7)}${C.reset}  ` +
+          `E2E:${C.green}${padStartVis(fmtTps(m.avgE2eTps), 9)}${C.reset}`
+      );
+    }
+  }
 
   if (sub.items && sub.items.length > 0) {
     lines.push('');
@@ -199,14 +230,18 @@ function renderAnsiDashboard(report, showAllSubs = false) {
   lines.push(`${C.bold}📋 最近 ${recent.length} 次模型调用 (共 ${activeSession.calls.length} 次):${C.reset}`);
   for (const c of recent) {
     const stepStr = c.firstStep === c.lastStep ? `${c.firstStep}` : `${c.firstStep}-${c.lastStep}`;
+    const ttftStr = c.ttftSeconds !== null && c.ttftSeconds !== undefined ? `${c.ttftSeconds}s` : '-';
+    const tpsVal = c.e2eTokensPerSecond !== undefined ? c.e2eTokensPerSecond : c.tokensPerSecond;
+    const tpsStr = tpsVal !== null && tpsVal !== undefined ? `${tpsVal} t/s` : '-';
     lines.push(
       `  #${padEndVis(String(c.callIndex), 3)} ` +
         `${C.dim}T${c.turnIndex}(${padEndVis(stepStr, 7)})${C.reset} ` +
-        `${C.yellow}${padEndVis(c.responseModel, 22)}${C.reset} ` +
-        `📥${padStartVis(fmtShort(c.inputTokens), 7)} ` +
-        `⚡${C.green}${padStartVis(fmtShort(c.cacheReadTokens), 7)}${C.reset}(${padStartVis(c.cacheHitRate + '%', 5)}) ` +
-        `📤${padStartVis(fmtShort(c.outputTokens), 6)}${C.dim}(🧠${fmtShort(c.thinkingTokens)})${C.reset} ` +
-        `📊Ctx:${padStartVis(fmtShort(c.actualContextTokens), 7)}(${c.actualContextRatio ?? '-'}%)`
+        `${C.yellow}${padEndVis(c.responseModel, 20)}${C.reset} ` +
+        `📥${padStartVis(fmtShort(c.inputTokens), 6)} ` +
+        `⚡${C.green}${padStartVis(fmtShort(c.cacheReadTokens), 6)}${C.reset}(${padStartVis(c.cacheHitRate + '%', 5)}) ` +
+        `📤${padStartVis(fmtShort(c.outputTokens), 6)} ` +
+        `⏱${padStartVis(ttftStr, 6)} ` +
+        `🚀${padStartVis(tpsStr, 9)}`
     );
   }
   lines.push(rule);

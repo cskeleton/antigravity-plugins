@@ -128,7 +128,15 @@
       gap: 6px;
       flex-wrap: wrap;
       min-width: 0;
-      flex: 1;
+      flex: 1 1 240px;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      flex: 0 0 auto;
     }
 
     select, button {
@@ -142,8 +150,14 @@
       cursor: pointer;
     }
 
+    button {
+      white-space: nowrap;
+    }
+
     select {
-      max-width: 280px;
+      flex: 1 1 150px;
+      min-width: 0;
+      max-width: 300px;
       text-overflow: ellipsis;
     }
 
@@ -173,8 +187,14 @@
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      gap: 6px 12px;
+      gap: 4px 10px;
       font-size: 12.5px;
+      min-width: 0;
+    }
+
+    .banner-sep {
+      color: var(--ink-muted);
+      opacity: 0.65;
     }
 
     .badge {
@@ -187,6 +207,17 @@
       font-weight: 600;
       background: var(--surface-subtle);
       border: 1px solid var(--line-border);
+      white-space: nowrap;
+      flex-shrink: 0;
+      max-width: 100%;
+    }
+
+    .badge-wrap {
+      white-space: normal;
+      overflow-wrap: anywhere;
+      flex-shrink: 1;
+      border-radius: 8px;
+      line-height: 1.35;
     }
 
     .badge-primary {
@@ -258,8 +289,10 @@
     .gauge-labels {
       display: flex;
       justify-content: space-between;
+      align-items: baseline;
+      flex-wrap: wrap;
       font-size: 12px;
-      gap: 8px;
+      gap: 2px 8px;
     }
 
     .progress-track {
@@ -282,51 +315,144 @@
     .progress-fill.secondary { background: var(--accent-purple); opacity: 0.85; }
 
     /* 3-Tier Cost Hierarchy Grid */
+    .tier-grid-wrap {
+      container: tier-grid / inline-size;
+    }
+
     .tier-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      grid-template-columns: 1fr;
       gap: 8px;
     }
 
     .tier-box {
+      container: tier-box / inline-size;
       background: var(--surface-subtle);
       border: 1px solid var(--line-border);
       border-radius: 7px;
-      padding: 10px;
+      padding: 10px 12px;
       display: flex;
       flex-direction: column;
       gap: 6px;
+      min-width: 0;
     }
 
     .tier-box.highlight {
       border-color: var(--accent-primary);
     }
 
+    @container tier-grid (width >= 520px) {
+      .tier-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .tier-box.tier-total-card {
+        grid-column: 1 / -1;
+      }
+    }
+
+    @container tier-grid (width >= 860px) {
+      .tier-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .tier-box.tier-total-card {
+        grid-column: auto;
+      }
+    }
+
     .tier-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 12px;
+      flex-wrap: wrap;
+      gap: 4px 8px;
+      font-size: 12.5px;
       font-weight: 600;
     }
 
+    .tier-title {
+      line-height: 1.3;
+      min-width: 0;
+    }
+
     .tier-total {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 2px 6px;
       font-size: 18px;
       font-weight: 700;
       letter-spacing: -0.02em;
+      line-height: 1.25;
+    }
+
+    .tier-total-exact {
+      font-weight: 400;
+      font-size: 11.5px;
+      letter-spacing: 0;
     }
 
     .kv-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 4px 8px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 7px 10px;
+      padding-top: 7px;
+      margin-top: 2px;
+      border-top: 1px solid var(--line-border);
       font-size: 11.5px;
     }
 
     .kv-item {
       display: flex;
-      justify-content: space-between;
-      gap: 4px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1px;
+      min-width: 0;
+    }
+
+    .kv-label {
+      color: var(--ink-muted);
+      font-size: 11px;
+      line-height: 1.3;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    .kv-value {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.3;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+    }
+
+    @container tier-box (width >= 500px) {
+      .kv-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px 12px;
+      }
+    }
+
+    @container tier-box (width < 225px) {
+      .kv-grid {
+        grid-template-columns: 1fr;
+        gap: 4px;
+      }
+
+      .kv-item {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 6px;
+      }
+
+      .kv-value {
+        text-align: end;
+      }
     }
 
     /* Breakdown chips */
@@ -425,10 +551,7 @@
       }
 
       table.stackable tr {
-        margin-block-end: 8px;
-        border: 1px solid var(--line-border);
-        border-radius: 6px;
-        overflow: hidden;
+        border-block-end: 2px solid var(--line-border);
       }
 
       table.stackable tbody th {
@@ -438,10 +561,55 @@
         background: var(--surface-subtle);
       }
 
+      table.stackable {
+        border-collapse: collapse;
+      }
+
+      table.stackable th,
+      table.stackable td {
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
+
       table.stackable td {
         display: flex;
         justify-content: space-between;
-        padding: 4px 8px;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 2px 8px;
+        padding: 5px 8px;
+      }
+
+      table.stackable td::before {
+        flex-shrink: 0;
+        font-size: 11px;
+      }
+
+      table.stackable td > .cell-val {
+        margin-inline-start: auto;
+        text-align: end;
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+
+      table.stackable td:last-child {
+        border-block-end: none;
+      }
+
+      table.stackable tr:last-child {
+        border-block-end: none;
+      }
+
+      table.stackable tr.empty-row {
+        border: none;
+      }
+
+      table.stackable tr.empty-row td {
+        justify-content: center;
+      }
+
+      table.stackable tr.empty-row td::before {
+        content: none;
       }
 
       table.stackable td:nth-child(2)::before { content: var(--label-2) ": "; color: var(--ink-muted); }
@@ -451,6 +619,42 @@
       table.stackable td:nth-child(6)::before { content: var(--label-6) ": "; color: var(--ink-muted); }
       table.stackable td:nth-child(7)::before { content: var(--label-7) ": "; color: var(--ink-muted); }
       table.stackable td:nth-child(8)::before { content: var(--label-8) ": "; color: var(--ink-muted); }
+      table.stackable td:nth-child(9)::before { content: var(--label-9) ": "; color: var(--ink-muted); }
+      table.stackable td:nth-child(10)::before { content: var(--label-10) ": "; color: var(--ink-muted); }
+    }
+
+    @media (max-width: 980px) {
+      .banner-sep {
+        display: none;
+      }
+      .banner-row {
+        gap: 4px 10px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      body {
+        padding: 8px;
+      }
+      .app-shell {
+        gap: 8px;
+      }
+      .toolbar {
+        padding: 8px;
+      }
+      select {
+        max-width: 100%;
+      }
+      .compact-banner {
+        padding: 8px 10px;
+      }
+      .card {
+        padding: 10px;
+        gap: 8px;
+      }
+      .tier-box {
+        padding: 9px 10px;
+      }
     }
   </style>
 </head>
@@ -461,26 +665,27 @@
       <div class="toolbar-group">
         <label for="session-select" class="muted">会话:</label>
         <select id="session-select" title="选择要查看的会话或自动跟随最新会话">
-          <option value="">⚡ 自动跟随当前/最新会话</option>
+          <option value="">自动跟随当前/最新会话</option>
         </select>
         <span id="data-source-badge" class="badge">RPC</span>
       </div>
-      <div class="toolbar-group" style="justify-content: flex-end; flex: 0 0 auto;">
-        <button id="btn-auto-refresh" class="active" title="每 3 秒自动同步最新模型调用">⏱ 自动刷新: 开</button>
+      <div class="toolbar-actions">
+        <button id="btn-auto-refresh" class="active" title="每 3 秒自动同步最新模型调用">自动刷新: 开</button>
         <button id="btn-refresh" title="立即刷新">↻ 刷新</button>
       </div>
     </header>
 
-    <!-- Compact Top Status Strip: Current Message Token Usage + Context Window -->
-    <section class="compact-banner" id="compact-banner" aria-label="当前消息与上下文紧凑概览">
+    <!-- Compact Top Status Strip: Current Message Token Usage + Context Window + Session Perf -->
+    <section class="compact-banner" id="compact-banner" aria-label="当前消息、上下文与会话整体性能概览">
       <div class="banner-row" id="banner-turn-row">正在加载模型用量数据…</div>
       <div class="banner-row" id="banner-ctx-row"></div>
+      <div class="banner-row" id="banner-perf-row"></div>
     </section>
 
     <!-- Section 1: Active Model Identity, Quota & Context Window Watermark -->
     <section class="card">
       <div class="card-header">
-        <h2 class="card-title">🤖 当前模型与上下文窗口水位</h2>
+        <h2 class="card-title">当前模型与上下文窗口水位</h2>
         <div id="quota-pill"></div>
       </div>
 
@@ -490,7 +695,7 @@
 
       <details id="breakdown-details">
         <summary style="cursor: pointer; font-size: 12px; font-weight: 600; color: var(--accent-primary);">
-          🧩 查看上下文窗口结构拆解 (System Prompt / Tools / Chat History)
+          查看上下文窗口结构拆解 (System Prompt / Tools / Chat History)
         </summary>
         <div class="breakdown-list" id="breakdown-list" style="margin-top: 8px;"></div>
       </details>
@@ -503,7 +708,9 @@
         <span class="muted" id="hierarchy-subtitle"></span>
       </div>
 
-      <div class="tier-grid" id="tier-grid"></div>
+      <div class="tier-grid-wrap">
+        <div class="tier-grid" id="tier-grid"></div>
+      </div>
 
       <!-- Per-Model Breakdown Table -->
       <div tabindex="0" role="region" aria-labelledby="model-breakdown-caption" class="table-wrapper">
@@ -513,10 +720,12 @@
           --label-4: '新增 Input';
           --label-5: '缓存 Cached';
           --label-6: '命中率';
-          --label-7: '总输出 (🧠/💬)';
+          --label-7: '总输出 (思考/回复)';
           --label-8: '总计 Token';
+          --label-9: '平均 TTFT';
+          --label-10: 'E2E TPS';
         ">
-          <caption id="model-breakdown-caption">按模型分类累计 Token 用量</caption>
+          <caption id="model-breakdown-caption">按模型分类累计 Token 用量与性能</caption>
           <thead>
             <tr>
               <th>返回模型 ID</th>
@@ -525,8 +734,10 @@
               <th>新增 Input</th>
               <th>缓存 Cached</th>
               <th>命中率</th>
-              <th>总输出 (🧠思考 / 💬回复)</th>
+              <th>总输出 (思考 / 回复)</th>
               <th>总计 Token</th>
+              <th title="该模型所有调用的平均首包耗时">平均 TTFT</th>
+              <th title="该模型端到端平均速率 = 总输出 Token / 总端到端耗时">E2E TPS</th>
             </tr>
           </thead>
           <tbody id="model-breakdown-tbody"></tbody>
@@ -535,7 +746,7 @@
 
       <!-- Subagents List (shown when subagents exist) -->
       <div id="subagents-container" style="display: none;">
-        <div style="font-size: 12px; font-weight: 600; margin-bottom: 6px;">🌿 派生 Subagent 会话明细（点击可切换查看单步详情）</div>
+        <div style="font-size: 12px; font-weight: 600; margin-bottom: 6px;">派生 Subagent 会话明细（点击可切换查看单步详情）</div>
         <div tabindex="0" role="region" aria-labelledby="subagents-table-caption" class="table-wrapper">
           <table class="stackable" style="
             --label-2: '角色 / 类型';
@@ -545,6 +756,8 @@
             --label-6: '缓存 Cached';
             --label-7: '总输出';
             --label-8: '总计 Token';
+            --label-9: '平均 TTFT';
+            --label-10: 'E2E TPS';
           ">
             <caption id="subagents-table-caption">派生 Subagent 会话列表</caption>
             <thead>
@@ -557,6 +770,8 @@
                 <th>缓存 Cached</th>
                 <th>总输出</th>
                 <th>总计 Token</th>
+                <th>平均 TTFT</th>
+                <th>E2E TPS</th>
               </tr>
             </thead>
             <tbody id="subagents-tbody"></tbody>
@@ -568,8 +783,8 @@
     <!-- Section 3: Step-by-Step Calls / Turn-by-Turn History -->
     <section class="card">
       <div class="card-header">
-        <h2 class="card-title" id="history-title">📋 调用明细</h2>
-        <div style="display: flex; gap: 6px;">
+        <h2 class="card-title" id="history-title">调用明细</h2>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
           <button id="btn-view-calls" class="active">按单次调用 (Calls)</button>
           <button id="btn-view-turns">按用户消息轮次 (Turns)</button>
         </div>
@@ -581,9 +796,10 @@
           --label-3: '新增 Input';
           --label-4: '缓存 Cached';
           --label-5: '命中率';
-          --label-6: '输出 (🧠/💬)';
+          --label-6: '输出 (思考/回复)';
           --label-7: '实际上下文';
-          --label-8: 'TTFT / 速率';
+          --label-8: 'TTFT';
+          --label-9: 'E2E TPS';
         ">
           <caption id="calls-table-caption">当前会话模型调用历史明细</caption>
           <thead id="history-thead"></thead>
@@ -634,13 +850,50 @@
         }[c]));
       }
 
+      function resolveAvgTtft(acc) {
+        if (!acc) return null;
+        if (acc.avgTtftSeconds !== undefined) return acc.avgTtftSeconds;
+        if (acc.totalTtftSeconds > 0 && acc.callCount > 0) {
+          const validCalls = acc.ttftCallCount || Math.max(1, acc.callCount - (acc.errorCount || 0));
+          return Math.round((acc.totalTtftSeconds / validCalls) * 100) / 100;
+        }
+        return null;
+      }
+
+      function resolveAvgE2eTps(acc) {
+        if (!acc) return null;
+        if (acc.avgE2eTps !== undefined) return acc.avgE2eTps;
+        const totalSec = (acc.totalTtftSeconds || 0) + (acc.totalStreamingSeconds || 0);
+        if (totalSec > 0.2 && acc.outputTokens > 0) {
+          return Math.round((acc.outputTokens / totalSec) * 10) / 10;
+        }
+        return null;
+      }
+
+      function fmtTtft(sec) {
+        if (sec === null || sec === undefined || Number.isNaN(Number(sec))) return '-';
+        return `${Number(sec).toFixed(2).replace(/\.?0+$/, '')}s`;
+      }
+
+      function fmtTps(tps) {
+        if (tps === null || tps === undefined || Number.isNaN(Number(tps))) return '-';
+        return `${tps} t/s`;
+      }
+
+      function setTableLabels(tableEl, labels) {
+        if (!tableEl) return;
+        labels.forEach((lbl, idx) => {
+          tableEl.style.setProperty(`--label-${idx + 2}`, `'${lbl}'`);
+        });
+      }
+
       async function loadSessionsList() {
         try {
           const res = await apiFetch('/api/sessions', { method: 'POST', body: JSON.stringify({ limit: 40 }) });
           if (!res.ok) return;
           const data = await res.json();
           const currentVal = selectedConversationId;
-          const opts = ['<option value="">⚡ 自动跟随最新活跃会话</option>'];
+          const opts = ['<option value="">自动跟随最新活跃会话</option>'];
           for (const s of data.sessions || []) {
             const subTag = s.subagentCount > 0 ? ` [+${s.subagentCount} Sub]` : '';
             const label = `${s.title || s.conversationId.slice(0, 8)}${subTag} (${s.stepCount} steps)`;
@@ -649,7 +902,7 @@
             for (const sub of s.subagents || []) {
               const subSel = sub.conversationId === currentVal ? ' selected' : '';
               opts.push(
-                `<option value="${esc(sub.conversationId)}"${subSel}>  ↳ 🌿 [Subagent] ${esc(sub.title)} (${sub.stepCount} steps)</option>`
+                `<option value="${esc(sub.conversationId)}"${subSel}>  ↳ [Subagent] ${esc(sub.title)} (${sub.stepCount} steps)</option>`
               );
             }
           }
@@ -660,20 +913,27 @@
       }
 
       function renderTierCard(title, badgeText, data, isHighlight) {
+        const avgTtft = resolveAvgTtft(data);
+        const avgTps = resolveAvgE2eTps(data);
         return `
-          <div class="tier-box${isHighlight ? ' highlight' : ''}">
+          <div class="tier-box${isHighlight ? ' highlight tier-total-card' : ''}">
             <div class="tier-head">
-              <span>${esc(title)}</span>
-              <span class="badge">${esc(badgeText)}</span>
+              <span class="tier-title">${esc(title)}</span>
+              <span class="badge tier-badge">${esc(badgeText)}</span>
             </div>
-            <div class="tier-total mono">${fmtShort(data.totalTokens)} <span class="muted" style="font-weight:400;">(${fmtNum(data.totalTokens)})</span></div>
+            <div class="tier-total mono">
+              <span>${fmtShort(data.totalTokens)}</span>
+              <span class="muted tier-total-exact">(${fmtNum(data.totalTokens)})</span>
+            </div>
             <div class="kv-grid">
-              <div class="kv-item"><span class="muted">新增 Input:</span><span class="mono">${fmtShort(data.inputTokens)}</span></div>
-              <div class="kv-item"><span class="muted">缓存 Cached:</span><span class="mono">${fmtShort(data.cacheReadTokens)}</span></div>
-              <div class="kv-item"><span class="muted">缓存命中率:</span><span class="mono" style="color:var(--accent-emerald);font-weight:600;">${data.cacheHitRate}%</span></div>
-              <div class="kv-item"><span class="muted">缓存写入:</span><span class="mono">${fmtShort(data.cacheWriteTokens)}</span></div>
-              <div class="kv-item"><span class="muted">总输出 Out:</span><span class="mono">${fmtShort(data.outputTokens)}</span></div>
-              <div class="kv-item"><span class="muted">🧠思考/💬回复:</span><span class="mono">${fmtShort(data.thinkingTokens)}/${fmtShort(data.responseTokens)}</span></div>
+              <div class="kv-item"><span class="kv-label">新增 Input</span><span class="kv-value">${fmtShort(data.inputTokens)}</span></div>
+              <div class="kv-item"><span class="kv-label">缓存 Cached</span><span class="kv-value">${fmtShort(data.cacheReadTokens)}</span></div>
+              <div class="kv-item"><span class="kv-label">缓存命中率</span><span class="kv-value" style="color:var(--accent-emerald);">${data.cacheHitRate}%</span></div>
+              <div class="kv-item"><span class="kv-label">缓存写入</span><span class="kv-value">${fmtShort(data.cacheWriteTokens)}</span></div>
+              <div class="kv-item"><span class="kv-label">总输出 Out</span><span class="kv-value">${fmtShort(data.outputTokens)}</span></div>
+              <div class="kv-item"><span class="kv-label">思考 / 回复</span><span class="kv-value">${fmtShort(data.thinkingTokens)}/${fmtShort(data.responseTokens)}</span></div>
+              <div class="kv-item"><span class="kv-label">平均 TTFT</span><span class="kv-value">${fmtTtft(avgTtft)}</span></div>
+              <div class="kv-item" title="端到端平均速率 = 总输出 Token / 总端到端耗时"><span class="kv-label">E2E TPS</span><span class="kv-value">${fmtTps(avgTps)}</span></div>
             </div>
           </div>
         `;
@@ -681,12 +941,24 @@
 
       function renderHistoryTable(report) {
         const { activeSession } = report;
+        const tableEl = document.getElementById('history-table');
         const thead = document.getElementById('history-thead');
         const tbody = document.getElementById('history-tbody');
         const titleEl = document.getElementById('history-title');
 
         if (viewMode === 'turns') {
-          titleEl.textContent = `📋 按用户消息轮次汇总 (共 ${activeSession.turns.length} 轮)`;
+          titleEl.textContent = `按用户消息轮次汇总 (共 ${activeSession.turns.length} 轮)`;
+          setTableLabels(tableEl, [
+            '使用模型 ID',
+            '调用次数',
+            '本轮新增 Input',
+            '本轮缓存 Cached',
+            '命中率',
+            '本轮输出 (思考/回复)',
+            '轮末实际上下文',
+            '平均 TTFT',
+            'E2E TPS'
+          ]);
           thead.innerHTML = `
             <tr>
               <th>消息轮次</th>
@@ -695,28 +967,44 @@
               <th>本轮新增 Input</th>
               <th>本轮缓存 Cached</th>
               <th>命中率</th>
-              <th>本轮输出 (🧠思考 / 💬回复)</th>
+              <th>本轮输出 (思考 / 回复)</th>
               <th>轮末实际上下文</th>
+              <th title="本轮所有调用的平均首包耗时">平均 TTFT</th>
+              <th title="本轮端到端速率 = 本轮输出 Token / 本轮端到端总耗时">E2E TPS</th>
             </tr>
           `;
           const rows = [...activeSession.turns].reverse().map((t) => {
             const ctxEnd = t.contextAtEnd;
+            const turnAvgTtft = resolveAvgTtft(t);
+            const turnAvgTps = resolveAvgE2eTps(t);
             return `
               <tr>
                 <th class="mono">消息 #${t.turnIndex} <span class="muted">(Step ${t.firstStep}-${t.lastStep})</span></th>
-                <td class="col-left mono">${esc(t.models.join(', '))}</td>
+                <td class="col-left mono"><span class="cell-val">${esc(t.models.join(', '))}</span></td>
                 <td class="mono">${t.callCount}</td>
                 <td class="mono">${fmtNum(t.inputTokens)}</td>
                 <td class="mono">${fmtNum(t.cacheReadTokens)}</td>
                 <td class="mono">${t.cacheHitRate}%</td>
-                <td class="mono">${fmtNum(t.outputTokens)} <span class="muted">(${fmtNum(t.thinkingTokens)} / ${fmtNum(t.responseTokens)})</span></td>
+                <td class="mono"><span class="cell-val">${fmtNum(t.outputTokens)} <span class="muted">(${fmtNum(t.thinkingTokens)} / ${fmtNum(t.responseTokens)})</span></span></td>
                 <td class="mono">${ctxEnd ? `${fmtShort(ctxEnd.actualContextTokens)} (${ctxEnd.actualContextRatio ?? '-'}%)` : '-'}</td>
+                <td class="mono">${fmtTtft(turnAvgTtft)}</td>
+                <td class="mono">${fmtTps(turnAvgTps)}</td>
               </tr>
             `;
           });
-          tbody.innerHTML = rows.join('') || '<tr><td colspan="8" style="text-align:center;">暂无记录</td></tr>';
+          tbody.innerHTML = rows.join('') || '<tr class="empty-row"><td colspan="10" style="text-align:center;">暂无记录</td></tr>';
         } else {
-          titleEl.textContent = `📋 逐次模型调用明细 (共 ${activeSession.calls.length} 次调用)`;
+          titleEl.textContent = `逐次模型调用明细 (共 ${activeSession.calls.length} 次调用)`;
+          setTableLabels(tableEl, [
+            '返回模型 ID',
+            '新增 Input',
+            '缓存 Cached',
+            '命中率',
+            '输出 (思考/回复)',
+            '实际上下文',
+            'TTFT',
+            'E2E TPS'
+          ]);
           thead.innerHTML = `
             <tr>
               <th># (Step)</th>
@@ -724,38 +1012,43 @@
               <th>新增 Input</th>
               <th>缓存 Cached</th>
               <th>命中率</th>
-              <th>输出 (🧠思考 / 💬回复)</th>
+              <th>输出 (思考 / 回复)</th>
               <th>当次实际上下文</th>
-              <th>TTFT / 速率</th>
+              <th title="首包耗时 (Time To First Token)">TTFT</th>
+              <th title="端到端速率 = 输出 Token / (TTFT + 流式传输耗时)">E2E TPS</th>
             </tr>
           `;
           const rows = [...activeSession.calls].reverse().map((c) => {
             const stepRange = c.firstStep === c.lastStep ? `${c.firstStep}` : `${c.firstStep}-${c.lastStep}`;
             const flags = [
-              c.modelSwitched ? '<span class="badge badge-purple" title="模型发生切换">🔄 切换</span>' : '',
-              c.compressed ? '<span class="badge badge-amber" title="上下文发生压缩">🗜️ 压缩</span>' : '',
-              c.retryCount > 0 ? `<span class="badge badge-amber" title="发生重试">🔁×${c.retryCount}</span>` : '',
-              c.hasError ? `<span class="badge badge-rose" title="${esc(c.errorMessage || '调用异常')}">⚠️ 异常</span>` : ''
+              c.modelSwitched ? '<span class="badge badge-purple" title="模型发生切换">切换</span>' : '',
+              c.compressed ? '<span class="badge badge-amber" title="上下文发生压缩">压缩</span>' : '',
+              c.retryCount > 0 ? `<span class="badge badge-amber" title="发生重试">重试×${c.retryCount}</span>` : '',
+              c.hasError ? `<span class="badge badge-rose" title="${esc(c.errorMessage || '调用异常')}">异常</span>` : ''
             ].filter(Boolean).join(' ');
-            const perf = [
-              c.ttftSeconds !== null ? `${c.ttftSeconds}s` : '-',
-              c.tokensPerSecond !== null ? `${c.tokensPerSecond} t/s` : ''
-            ].filter(Boolean).join(' · ');
+            const e2eTps = c.e2eTokensPerSecond !== undefined ? c.e2eTokensPerSecond : c.tokensPerSecond;
+            const e2eSec = c.e2eSeconds !== undefined
+              ? c.e2eSeconds
+              : (c.ttftSeconds !== null || c.streamingSeconds !== null)
+                ? Math.round(((c.ttftSeconds || 0) + (c.streamingSeconds || 0)) * 100) / 100
+                : null;
+            const timingTip = `首包 TTFT: ${fmtTtft(c.ttftSeconds)} | 流式传输: ${fmtTtft(c.streamingSeconds)} | 端到端总耗时: ${fmtTtft(e2eSec)}`;
 
             return `
               <tr>
                 <th class="mono">#${c.callIndex} <span class="muted">T${c.turnIndex} (${stepRange})</span></th>
-                <td class="col-left mono" title="Response ID: ${esc(c.responseId)}">${esc(c.responseModel)} ${flags}</td>
+                <td class="col-left mono" title="Response ID: ${esc(c.responseId)}"><span class="cell-val">${esc(c.responseModel)}${flags ? ` ${flags}` : ''}</span></td>
                 <td class="mono">${fmtNum(c.inputTokens)}</td>
-                <td class="mono">${fmtNum(c.cacheReadTokens)}${c.cacheWriteTokens > 0 ? ` <span class="muted">(+${fmtShort(c.cacheWriteTokens)}写)</span>` : ''}</td>
+                <td class="mono"><span class="cell-val">${fmtNum(c.cacheReadTokens)}${c.cacheWriteTokens > 0 ? ` <span class="muted">(+${fmtShort(c.cacheWriteTokens)}写)</span>` : ''}</span></td>
                 <td class="mono">${c.cacheHitRate}%</td>
-                <td class="mono">${fmtNum(c.outputTokens)} <span class="muted">(${fmtNum(c.thinkingTokens)}/${fmtNum(c.responseTokens)})</span></td>
-                <td class="mono">${fmtShort(c.actualContextTokens)} <span class="muted">(${c.actualContextRatio ?? '-'}%)</span></td>
-                <td class="mono">${esc(perf)}</td>
+                <td class="mono"><span class="cell-val">${fmtNum(c.outputTokens)} <span class="muted">(${fmtNum(c.thinkingTokens)}/${fmtNum(c.responseTokens)})</span></span></td>
+                <td class="mono"><span class="cell-val">${fmtShort(c.actualContextTokens)} <span class="muted">(${c.actualContextRatio ?? '-'}%)</span></span></td>
+                <td class="mono" title="${esc(timingTip)}">${fmtTtft(c.ttftSeconds)}</td>
+                <td class="mono" title="${esc(timingTip)}">${fmtTps(e2eTps)}</td>
               </tr>
             `;
           });
-          tbody.innerHTML = rows.join('') || '<tr><td colspan="8" style="text-align:center;">暂无模型调用记录</td></tr>';
+          tbody.innerHTML = rows.join('') || '<tr class="empty-row"><td colspan="9" style="text-align:center;">暂无模型调用记录</td></tr>';
         }
       }
 
@@ -773,12 +1066,13 @@
         // 1. Compact Top Banner
         const turnRow = document.getElementById('banner-turn-row');
         const ctxRow = document.getElementById('banner-ctx-row');
+        const perfRow = document.getElementById('banner-perf-row');
         if (lt) {
           turnRow.innerHTML = `
-            <span class="badge badge-primary mono">🏷 ${esc(cw.responseModel)}</span>
+            <span class="badge badge-wrap badge-primary mono">${esc(cw.responseModel)}</span>
             <span><strong>本条消息 (#${lt.turnIndex})</strong> · ${lt.callCount} 次调用</span>
-            <span>📥 新增 <strong class="mono">${fmtShort(lt.inputTokens)}</strong> + ⚡缓存 <strong class="mono">${fmtShort(lt.cacheReadTokens)}</strong> (${lt.cacheHitRate}%)</span>
-            <span>📤 输出 <strong class="mono">${fmtShort(lt.outputTokens)}</strong> <span class="muted">(🧠思考 ${fmtShort(lt.thinkingTokens)} / 💬回复 ${fmtShort(lt.responseTokens)})</span></span>
+            <span>新增 <strong class="mono">${fmtShort(lt.inputTokens)}</strong> + 缓存 <strong class="mono">${fmtShort(lt.cacheReadTokens)}</strong> (${lt.cacheHitRate}%)</span>
+            <span>输出 <strong class="mono">${fmtShort(lt.outputTokens)}</strong> <span class="muted">(思考 ${fmtShort(lt.thinkingTokens)} / 回复 ${fmtShort(lt.responseTokens)})</span></span>
           `;
         } else {
           turnRow.innerHTML = `<span class="muted">当前会话尚无模型调用记录</span>`;
@@ -787,10 +1081,25 @@
         const statusBadgeClass =
           cw.statusLevel === 'critical' ? 'badge-rose' : cw.statusLevel === 'warning' ? 'badge-amber' : 'badge-emerald';
         ctxRow.innerHTML = `
-          <span class="badge ${statusBadgeClass}">📊 上下文 ${cw.actualPercent}%</span>
+          <span class="badge ${statusBadgeClass}">上下文 ${cw.actualPercent}%</span>
           <span>实际 <strong class="mono">${fmtShort(cw.actualTokensUsed)} / ${fmtShort(cw.maxContextTokens)}</strong> <span class="muted">(估算 ${fmtShort(cw.estimatedTokensUsed)} · ${cw.estimatedPercent}%)</span></span>
-          <span>│</span>
+          <span class="banner-sep" aria-hidden="true">│</span>
           <span><strong>Σ 会话总计 <span class="mono">${fmtShort(tot.totalTokens)}</span></strong> = 主会话 <span class="mono">${fmtShort(main.totalTokens)}</span> + Subagents[${sub.count}] <span class="mono">${fmtShort(sub.totalTokens)}</span></span>
+        `;
+
+        const totAvgTtft = resolveAvgTtft(tot);
+        const totAvgTps = resolveAvgE2eTps(tot);
+        const mainAvgTtft = resolveAvgTtft(main);
+        const mainAvgTps = resolveAvgE2eTps(main);
+        const ltAvgTtft = lt ? resolveAvgTtft(lt) : null;
+        const ltAvgTps = lt ? resolveAvgE2eTps(lt) : null;
+        perfRow.innerHTML = `
+          <span class="badge badge-purple" title="包含主会话与所有派生 Subagent 的全局平均性能">会话整体性能</span>
+          <span>平均 TTFT <strong class="mono">${fmtTtft(totAvgTtft)}</strong></span>
+          <span class="banner-sep" aria-hidden="true">·</span>
+          <span title="会话端到端平均速率 = 累计输出 Token / 累计端到端总耗时">平均 E2E TPS <strong class="mono">${fmtTps(totAvgTps)}</strong></span>
+          ${sub.count > 0 ? `<span class="banner-sep" aria-hidden="true">│</span><span class="muted">主会话 <span class="mono">${fmtTtft(mainAvgTtft)} / ${fmtTps(mainAvgTps)}</span></span>` : ''}
+          ${lt ? `<span class="banner-sep" aria-hidden="true">│</span><span class="muted">本条消息 (#${lt.turnIndex}): TTFT <span class="mono">${fmtTtft(ltAvgTtft)}</span> · E2E TPS <span class="mono">${fmtTps(ltAvgTps)}</span></span>` : ''}
         `;
 
         // 2. Active Model Identity & Quota
@@ -799,16 +1108,16 @@
         if (q && q.remainingPercent !== null) {
           const qClass = q.remainingPercent < 20 ? 'badge-rose' : q.remainingPercent < 50 ? 'badge-amber' : 'badge-emerald';
           const resetDate = q.resetTime ? new Date(q.resetTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-          quotaEl.innerHTML = `<span class="badge ${qClass}" title="重置时间: ${esc(q.resetTime || '')}">🔋 模型配额剩余 ${q.remainingPercent}%${resetDate ? ` (${resetDate} 重置)` : ''}</span>`;
+          quotaEl.innerHTML = `<span class="badge ${qClass}" title="重置时间: ${esc(q.resetTime || '')}">模型配额剩余 ${q.remainingPercent}%${resetDate ? ` (${resetDate} 重置)` : ''}</span>`;
         } else {
           quotaEl.innerHTML = '';
         }
 
         document.getElementById('model-identity-row').innerHTML = `
-          <span class="badge badge-primary mono">返回 ID: ${esc(cw.responseModel)}</span>
-          <span class="badge">显示名: ${esc(cw.modelDisplayName)}</span>
-          <span class="badge mono">枚举: ${esc(cw.modelEnum)}</span>
-          <span class="badge mono">提供商: ${esc(cw.apiProvider)}</span>
+          <span class="badge badge-wrap badge-primary mono" title="${esc(cw.responseModel)}">返回 ID: ${esc(cw.responseModel)}</span>
+          <span class="badge badge-wrap" title="${esc(cw.modelDisplayName)}">显示名: ${esc(cw.modelDisplayName)}</span>
+          <span class="badge badge-wrap mono" title="${esc(cw.modelEnum)}">枚举: ${esc(cw.modelEnum)}</span>
+          <span class="badge badge-wrap mono">提供商: ${esc(cw.apiProvider)}</span>
           <span class="badge mono">单次最大输出: ${fmtNum(cw.maxOutputTokens)}</span>
         `;
 
@@ -838,10 +1147,10 @@
         const bdList = document.getElementById('breakdown-list');
         if (cw.breakdownGroups && cw.breakdownGroups.length > 0) {
           bdList.innerHTML = cw.breakdownGroups.map((g) => {
-            const topItems = (g.topChildren || []).slice(0, 6).map((c) => `<span class="badge mono">${esc(c.name)}: ${fmtNum(c.numTokens)}</span>`).join(' ');
+            const topItems = (g.topChildren || []).slice(0, 6).map((c) => `<span class="badge badge-wrap mono">${esc(c.name)}: ${fmtNum(c.numTokens)}</span>`).join(' ');
             return `
               <div class="breakdown-item">
-                <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px 8px;margin-bottom:4px;">
                   <strong>${esc(g.name)}</strong>
                   <span class="mono">${fmtNum(g.numTokens)} tokens (${g.ratioPercent}%)</span>
                 </div>
@@ -857,9 +1166,9 @@
         document.getElementById('hierarchy-subtitle').textContent =
           `根会话 ${report.rootConversationId.slice(0, 8)}… · 共 ${tot.sessionCount} 个关联会话`;
         document.getElementById('tier-grid').innerHTML = [
-          renderTierCard('🔥 全局总开销 (Total)', `${tot.callCount} 次调用`, tot, true),
-          renderTierCard('💬 主会话开销 (Main)', `${main.callCount} 次调用`, main, false),
-          renderTierCard(`🌿 Subagents 开销 (×${sub.count})`, `${sub.callCount} 次调用`, sub, false),
+          renderTierCard('全局总开销 (Total)', `${tot.callCount} 次调用`, tot, true),
+          renderTierCard('主会话开销 (Main)', `${main.callCount} 次调用`, main, false),
+          renderTierCard(`Subagents 开销 (×${sub.count})`, `${sub.callCount} 次调用`, sub, false),
         ].join('');
 
         // Per-model breakdown table
@@ -867,15 +1176,17 @@
         modelTbody.innerHTML = (tot.byModel || []).map((m) => `
           <tr>
             <th class="mono">${esc(m.responseModel)}</th>
-            <td class="col-left">${esc(m.modelDisplayName)}</td>
+            <td class="col-left"><span class="cell-val">${esc(m.modelDisplayName)}</span></td>
             <td class="mono">${fmtNum(m.callCount)}</td>
             <td class="mono">${fmtNum(m.inputTokens)}</td>
             <td class="mono">${fmtNum(m.cacheReadTokens)}</td>
             <td class="mono">${m.cacheHitRate}%</td>
-            <td class="mono">${fmtNum(m.outputTokens)} <span class="muted">(${fmtNum(m.thinkingTokens)} / ${fmtNum(m.responseTokens)})</span></td>
-            <td class="mono"><strong>${fmtNum(m.totalTokens)}</strong></td>
+            <td class="mono"><span class="cell-val">${fmtNum(m.outputTokens)} <span class="muted">(${fmtNum(m.thinkingTokens)} / ${fmtNum(m.responseTokens)})</span></span></td>
+            <td class="mono"><span class="cell-val"><strong>${fmtNum(m.totalTokens)}</strong></span></td>
+            <td class="mono">${fmtTtft(resolveAvgTtft(m))}</td>
+            <td class="mono">${fmtTps(resolveAvgE2eTps(m))}</td>
           </tr>
-        `).join('') || '<tr><td colspan="8" style="text-align:center;">暂无记录</td></tr>';
+        `).join('') || '<tr class="empty-row"><td colspan="10" style="text-align:center;">暂无记录</td></tr>';
 
         // Subagents table
         const subContainer = document.getElementById('subagents-container');
@@ -885,13 +1196,15 @@
           subTbody.innerHTML = sub.items.map((s) => `
             <tr style="cursor:pointer;" data-sub-id="${esc(s.conversationId)}" title="点击切换到该 Subagent 的调用详情">
               <th class="mono" style="color:var(--accent-primary);">${esc(s.conversationId.slice(0, 8))}…</th>
-              <td class="col-left">${esc(s.title)} <span class="badge mono">${esc(s.agentName)}</span></td>
-              <td class="col-left mono">${esc(s.responseModel)}</td>
+              <td class="col-left"><span class="cell-val">${esc(s.title)} <span class="badge mono">${esc(s.agentName)}</span></span></td>
+              <td class="col-left mono"><span class="cell-val">${esc(s.responseModel)}</span></td>
               <td class="mono">${fmtNum(s.summary.callCount)}</td>
               <td class="mono">${fmtNum(s.summary.inputTokens)}</td>
               <td class="mono">${fmtNum(s.summary.cacheReadTokens)}</td>
               <td class="mono">${fmtNum(s.summary.outputTokens)}</td>
-              <td class="mono"><strong>${fmtNum(s.summary.totalTokens)}</strong></td>
+              <td class="mono"><span class="cell-val"><strong>${fmtNum(s.summary.totalTokens)}</strong></span></td>
+              <td class="mono">${fmtTtft(resolveAvgTtft(s.summary))}</td>
+              <td class="mono">${fmtTps(resolveAvgE2eTps(s.summary))}</td>
             </tr>
           `).join('');
           for (const tr of subTbody.querySelectorAll('tr[data-sub-id]')) {
@@ -936,7 +1249,7 @@
       elBtnAuto.addEventListener('click', () => {
         autoRefresh = !autoRefresh;
         elBtnAuto.classList.toggle('active', autoRefresh);
-        elBtnAuto.textContent = autoRefresh ? '⏱ 自动刷新: 开' : '⏱ 自动刷新: 关';
+        elBtnAuto.textContent = autoRefresh ? '自动刷新: 开' : '自动刷新: 关';
       });
 
       elBtnCalls.addEventListener('click', () => {

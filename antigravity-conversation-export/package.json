@@ -1,0 +1,19 @@
+{
+  "name": "antigravity-conversation-export",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Export Antigravity (Desktop App & agy CLI) conversations as Markdown, standalone HTML, or paginated retina PNG images.",
+  "license": "MIT",
+  "type": "module",
+  "main": "lib/exporter.mjs",
+  "dependencies": {
+    "highlight.js": "^11.11.1",
+    "markdown-it": "^14.1.0",
+    "markdown-it-footnote": "^4.0.0",
+    "markdown-it-task-lists": "^2.1.1",
+    "playwright-core": "1.61.1"
+  },
+  "scripts": {
+    "test": "node --test tests/"
+  }
+}

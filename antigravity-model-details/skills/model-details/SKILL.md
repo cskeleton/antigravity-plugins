@@ -9,11 +9,11 @@ description: 统计并展示当前会话（或指定会话）的模型详细信�
 
 ## 1. 运行统计脚本获取精确数据
 
-运行本插件内置的统计 CLI 脚本（优先传入当前会话 ID，若不传则自动定位最新活跃根会话）：
+运行本插件内置的统计 CLI 脚本（位于当前 `SKILL.md` 向上两级目录的 `<plugin-root>/scripts/` 下，优先传入当前会话 ID，若不传则自动定位最新活跃根会话）：
 
 ```bash
-/Users/gc/Dev/MyProject/antigravity-model-details/scripts/run-node.sh \
-  /Users/gc/Dev/MyProject/antigravity-model-details/scripts/stats-cli.mjs \
+<plugin-root>/scripts/run-node.sh \
+  <plugin-root>/scripts/stats-cli.mjs \
   "<current-conversation-id>"
 ```
 
