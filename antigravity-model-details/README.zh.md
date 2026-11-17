@@ -30,7 +30,7 @@
 克隆仓库后进入 `antigravity-model-details` 目录运行一键安装脚本：
 
 ```bash
-git clone https://github.com/cskeleton/antigravity-model-details.git antigravity-plugins
+git clone https://github.com/cskeleton/antigravity-plugins.git
 cd antigravity-plugins/antigravity-model-details
 chmod +x scripts/install.sh
 ./scripts/install.sh

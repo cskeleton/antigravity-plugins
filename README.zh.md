@@ -16,7 +16,7 @@
 将本仓库克隆到机器上的**固定目录**（安装脚本会将该目录路径写入 `~/.gemini/config/plugins.json` 并创建命令入口与软链接，安装后请勿随意删除目录）：
 
 ```bash
-git clone https://github.com/cskeleton/antigravity-model-details.git antigravity-plugins
+git clone https://github.com/cskeleton/antigravity-plugins.git
 cd antigravity-plugins
 ```
 

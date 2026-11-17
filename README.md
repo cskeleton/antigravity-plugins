@@ -16,7 +16,7 @@ Independent plugins for **Antigravity.app (Desktop)** and **`agy` (TUI CLI)**, m
 Clone this repository to a **permanent directory** on your machine (the installer registers paths in `~/.gemini/config/plugins.json` and creates links pointing to this directory):
 
 ```bash
-git clone https://github.com/cskeleton/antigravity-model-details.git antigravity-plugins
+git clone https://github.com/cskeleton/antigravity-plugins.git
 cd antigravity-plugins
 ```
 

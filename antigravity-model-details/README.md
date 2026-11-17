@@ -30,7 +30,7 @@ A real-time model identity, context window, and token usage monitor plugin for *
 Clone the repository and run the installer inside `antigravity-model-details`:
 
 ```bash
-git clone https://github.com/cskeleton/antigravity-model-details.git antigravity-plugins
+git clone https://github.com/cskeleton/antigravity-plugins.git
 cd antigravity-plugins/antigravity-model-details
 chmod +x scripts/install.sh
 ./scripts/install.sh

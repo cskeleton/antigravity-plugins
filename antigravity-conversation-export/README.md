@@ -37,7 +37,7 @@ Export conversations as **Markdown**, standalone **HTML**, or **2x retina pagina
 Clone the repository, install dependencies, and run the installer inside `antigravity-conversation-export`:
 
 ```bash
-git clone https://github.com/cskeleton/antigravity-model-details.git antigravity-plugins
+git clone https://github.com/cskeleton/antigravity-plugins.git
 cd antigravity-plugins/antigravity-conversation-export
 pnpm install
 chmod +x scripts/install.sh

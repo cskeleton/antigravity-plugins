@@ -35,7 +35,7 @@
 ## 🚀 安装
 
 ```bash
-git clone https://github.com/cskeleton/antigravity-model-details.git antigravity-plugins
+git clone https://github.com/cskeleton/antigravity-plugins.git
 cd antigravity-plugins/antigravity-conversation-export
 pnpm install
 chmod +x scripts/install.sh

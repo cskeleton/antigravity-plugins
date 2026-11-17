@@ -13,9 +13,9 @@
     "name": "cskeleton",
     "url": "https://github.com/cskeleton"
   },
-  "homepage": "https://github.com/cskeleton/antigravity-model-details",
+  "homepage": "https://github.com/cskeleton/antigravity-plugins",
   "repository": {
     "type": "git",
-    "url": "https://github.com/cskeleton/antigravity-model-details.git"
+    "url": "https://github.com/cskeleton/antigravity-plugins.git"
   }
 }
