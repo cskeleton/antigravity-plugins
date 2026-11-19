@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Antigravity CLI (agy) — Enhanced Model Details & Usage Status Line Script
-Row 1: responseModel (displayName) · state · context (actual/max & est%) · cwd · quota
-Row 2: current turn tokens (input + cached + hit% + output[think/resp]) · 3-tier session total (Total = Main + Subagents)
-       (Falls back to rotating 💡 Tip before the first model call in a new session)
+"""Antigravity CLI (agy) — Enhanced Model Details & Usage Status Line Script (Main Session Only)
+Row 1 (left):  responseModel (displayName) · state · cwd
+Row 1 (right): context (actual/max & est%) · main-session cache hit% · quota
+Row 2:         current turn breakdown (new input + cached + hit% | output [🧠thinking / 💬response])
+Row 3:         main-session cumulative tokens (calls) · main-session cache hit% · main-session avg TTFT & E2E TPS
+               (Falls back to 2 rows with rotating 💡 Tip before the first model call in a new session)
 """
 import sys
 import json
@@ -15,6 +17,7 @@ import sqlite3
 import subprocess
 import http.client
 import ssl
+import unicodedata
 from datetime import datetime, timezone
 
 # ── ANSI Colors ────────────────────────────────────────────────────────────────
@@ -219,37 +222,6 @@ def _find_conv_db(conv_id: str) -> str:
     return ""
 
 
-def _find_subagent_ids(root_id: str) -> list[str]:
-    sub_ids = []
-    for base in (AGY_CLI_DIR, AGY_APP_DIR):
-        sum_db = os.path.join(base, "conversation_summaries.db")
-        if not os.path.exists(sum_db):
-            continue
-        try:
-            conn = sqlite3.connect(f"file:{sum_db}?mode=ro", uri=True, timeout=0.5)
-            rows = conn.execute(
-                "SELECT conversation_id, parent_conversation_id FROM conversation_summaries WHERE parent_conversation_id != ''"
-            ).fetchall()
-            conn.close()
-            parent_map = {r[0]: r[1] for r in rows}
-            for cid in parent_map:
-                cur = cid
-                visited = {cur}
-                while cur in parent_map and parent_map[cur]:
-                    nxt = parent_map[cur]
-                    if nxt == root_id:
-                        if cid not in sub_ids:
-                            sub_ids.append(cid)
-                        break
-                    if nxt in visited:
-                        break
-                    visited.add(nxt)
-                    cur = nxt
-        except Exception:
-            pass
-    return sub_ids
-
-
 def _analyze_single_db(conv_id: str) -> dict:
     db_path = _find_conv_db(conv_id)
     if not db_path:
@@ -346,36 +318,16 @@ def get_rich_session_stats(conv_id: str) -> dict:
     if not main or main["tot"]["calls"] == 0:
         return None
 
-    sub_ids = _find_subagent_ids(conv_id)
-    sub_tot = {
-        "count": len(sub_ids), "calls": 0, "total": 0,
-        "ttft_calls": 0, "ttft_sum": 0.0, "timed_out": 0, "timed_sec": 0.0,
-    }
-    for sid in sub_ids:
-        s_res = _analyze_single_db(sid)
-        if s_res:
-            st = s_res["tot"]
-            sub_tot["calls"] += st["calls"]
-            sub_tot["total"] += st["total"]
-            sub_tot["ttft_calls"] += st["ttft_calls"]
-            sub_tot["ttft_sum"] += st["ttft_sum"]
-            sub_tot["timed_out"] += st["timed_out"]
-            sub_tot["timed_sec"] += st["timed_sec"]
-
     mt = main["tot"]
-    g_ttft_calls = mt["ttft_calls"] + sub_tot["ttft_calls"]
-    g_ttft_sum = mt["ttft_sum"] + sub_tot["ttft_sum"]
-    g_timed_out = mt["timed_out"] + sub_tot["timed_out"]
-    g_timed_sec = mt["timed_sec"] + sub_tot["timed_sec"]
-
-    avg_ttft = (g_ttft_sum / g_ttft_calls) if g_ttft_calls > 0 else None
-    avg_e2e_tps = (g_timed_out / g_timed_sec) if (g_timed_sec > 0.2 and g_timed_out > 0) else None
+    main_in_total = mt["in"] + mt["cache_read"] + mt["cache_write"]
+    main_hit_pct = (mt["cache_read"] / main_in_total * 100.0) if main_in_total > 0 else 0.0
+    avg_ttft = (mt["ttft_sum"] / mt["ttft_calls"]) if mt["ttft_calls"] > 0 else None
+    avg_e2e_tps = (mt["timed_out"] / mt["timed_sec"]) if (mt["timed_sec"] > 0.2 and mt["timed_out"] > 0) else None
 
     return {
         "main": main,
-        "sub": sub_tot,
-        "grand_total": mt["total"] + sub_tot["total"],
-        "grand_calls": mt["calls"] + sub_tot["calls"],
+        "main_in_total": main_in_total,
+        "main_hit_pct": main_hit_pct,
         "avg_ttft": avg_ttft,
         "avg_e2e_tps": avg_e2e_tps,
     }
@@ -655,6 +607,55 @@ def get_tip() -> str:
 
 # ── Rendering ──────────────────────────────────────────────────────────────────
 SEP = f" {GRAY}│{RESET} "
+ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def vis_width(text: str) -> int:
+    plain = ANSI_RE.sub("", text)
+    width = 0
+    for ch in plain:
+        if unicodedata.category(ch) in ("Mn", "Me", "Cf"):
+            continue
+        width += 2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
+    return width
+
+
+def get_terminal_width(data: dict) -> int:
+    for key in ("terminal_width", "width", "columns"):
+        val = data.get(key)
+        if isinstance(val, (int, float)) and val >= 40:
+            return int(val)
+    term = data.get("terminal")
+    if isinstance(term, dict):
+        val = term.get("width") or term.get("columns")
+        if isinstance(val, (int, float)) and val >= 40:
+            return int(val)
+    env_cols = os.environ.get("COLUMNS", "")
+    if env_cols.isdigit() and int(env_cols) >= 40:
+        return int(env_cols)
+    for fd in (1, 2):
+        try:
+            cols = os.get_terminal_size(fd).columns
+            if cols >= 40:
+                return cols
+        except OSError:
+            pass
+    try:
+        with open("/dev/tty", "rb") as tty:
+            cols = os.get_terminal_size(tty.fileno()).columns
+            if cols >= 40:
+                return cols
+    except OSError:
+        pass
+    return 0
+
+
+def cache_hit_color(hit_pct: float) -> str:
+    if hit_pct >= 75:
+        return GREEN
+    if hit_pct >= 40:
+        return YELLOW
+    return ORANGE
 
 
 def render(data: dict) -> str:
@@ -711,7 +712,14 @@ def render(data: dict) -> str:
     sandbox_str = f" {ORANGE}[sandbox]{RESET}" if sandbox_enabled else ""
     path_display = f"{GREEN}{cwd}{RESET}{sandbox_str}"
 
-    # 5. Quota
+    # 5. Main-session cumulative cache hit rate
+    hit_display = ""
+    if rich and rich["main_in_total"] > 0:
+        main_hit_pct = rich["main_hit_pct"]
+        hc = cache_hit_color(main_hit_pct)
+        hit_display = f"{hc}⚡Hit {main_hit_pct:.0f}%{RESET}"
+
+    # 6. Quota
     quota = load_quota_for_model(raw_name, data)
     if "remaining_percentage" in quota:
         quota_pct = float(quota["remaining_percentage"])
@@ -722,48 +730,62 @@ def render(data: dict) -> str:
     else:
         quota_display = f"{GRAY}⬡ Quota: /usage{RESET}"
 
-    row1 = f"{model_display}{SEP}{state_display}{SEP}{ctx_display}{SEP}{quota_display}{SEP}{path_display}"
+    # Row 1: Left (Model · State · Path) + Right-aligned (Ctx · Main Hit% · Quota)
+    row1_left = f"{model_display}{SEP}{state_display}{SEP}{path_display}"
+    right_parts = [ctx_display]
+    if hit_display:
+        right_parts.append(hit_display)
+    right_parts.append(quota_display)
+    row1_right = SEP.join(right_parts)
 
-    # 6. Row 2: Compact Turn Usage + 3-Tier Cost Hierarchy (Total = Main + Subagents)
+    term_width = get_terminal_width(data)
+    try:
+        margin = int(os.environ.get("AGY_STATUS_WIDTH_MARGIN", "2"))
+    except ValueError:
+        margin = 2
+    usable_width = max(0, term_width - margin) if term_width > 0 else 0
+    gap = usable_width - vis_width(row1_left) - vis_width(row1_right)
+    if usable_width > 0 and gap >= 2:
+        row1 = f"{row1_left}{' ' * gap}{row1_right}"
+    else:
+        row1 = f"{row1_left}{SEP}{row1_right}"
+
+    # Row 2 & Row 3: Main-session latest turn breakdown & main-session cumulative totals
     if rich and rich["main"]["latest_turn"]:
         lt = rich["main"]["latest_turn"]
         tot_in = lt["in"] + lt["cache_read"] + lt["cache_write"]
-        hit_pct = (lt["cache_read"] / tot_in * 100.0) if tot_in > 0 else 0.0
-        cw_str = f"+✍️{format_tokens(lt['cache_write'])}" if lt["cache_write"] > 0 else ""
-        turn_part = (
+        turn_hit_pct = (lt["cache_read"] / tot_in * 100.0) if tot_in > 0 else 0.0
+        turn_hc = cache_hit_color(turn_hit_pct)
+        cw_str = f" {GRAY}+ 写{RESET} {WHITE}{format_tokens(lt['cache_write'])}{RESET}" if lt["cache_write"] > 0 else ""
+        row2 = (
             f"{CYAN}本条#{lt['turn']}({lt['calls']}次){RESET}: "
-            f"📥{WHITE}{format_tokens(lt['in'])}{RESET}"
-            f"+⚡{GREEN}{format_tokens(lt['cache_read'])}{RESET}{cw_str}"
-            f"{GRAY}({hit_pct:.0f}%){RESET} "
-            f"📤{WHITE}{format_tokens(lt['out'])}{RESET}"
-            f"{GRAY}(🧠{format_tokens(lt['think'])}/💬{format_tokens(lt['resp'])}){RESET}"
+            f"{GRAY}新增{RESET} {WHITE}{format_tokens(lt['in'])}{RESET} "
+            f"{GRAY}+ 缓存{RESET} {GREEN}{format_tokens(lt['cache_read'])}{RESET}{cw_str} "
+            f"{turn_hc}(命中{turn_hit_pct:.0f}%){RESET}"
+            f"{SEP}"
+            f"{GRAY}输出{RESET} {WHITE}{format_tokens(lt['out'])}{RESET} "
+            f"{GRAY}(🧠{format_tokens(lt['think'])} / 💬{format_tokens(lt['resp'])}){RESET}"
         )
-        main_tot = rich["main"]["tot"]["total"]
-        sub_cnt = rich["sub"]["count"]
-        sub_tot = rich["sub"]["total"]
-        grand_tot = rich["grand_total"]
-        if sub_cnt > 0:
-            hier_part = (
-                f"Σ 总 {BOLD}{WHITE}{format_tokens(grand_tot)}{RESET} = "
-                f"主 {format_tokens(main_tot)} + "
-                f"{PURPLE}Sub[{sub_cnt}] {format_tokens(sub_tot)}{RESET}"
-            )
-        else:
-            hier_part = (
-                f"Σ 会话累计 {BOLD}{WHITE}{format_tokens(main_tot)}{RESET} "
-                f"{GRAY}({rich['main']['tot']['calls']}次调用){RESET}"
-            )
+
+        mt = rich["main"]["tot"]
+        row3_parts = [
+            f"Σ 会话累计: {BOLD}{WHITE}{format_tokens(mt['total'])}{RESET} {GRAY}({mt['calls']}次调用){RESET}"
+        ]
+        if hit_display:
+            row3_parts.append(hit_display)
         perf_items = []
         if rich.get("avg_ttft") is not None:
             perf_items.append(f"TTFT {CYAN}{rich['avg_ttft']:.1f}s{RESET}")
         if rich.get("avg_e2e_tps") is not None:
             perf_items.append(f"E2E {GREEN}{rich['avg_e2e_tps']:.1f}t/s{RESET}")
-        perf_part = f"{SEP}{' · '.join(perf_items)}" if perf_items else ""
-        row2 = f"  {turn_part}{SEP}{hier_part}{perf_part}"
-    else:
-        tip = get_tip()
-        row2 = f"  {BLUE}💡 {tip}{RESET}"
+        if perf_items:
+            row3_parts.append(" · ".join(perf_items))
+        row3 = SEP.join(row3_parts)
 
+        return f"{row1}\n{row2}\n{row3}"
+
+    tip = get_tip()
+    row2 = f"{BLUE}💡 {tip}{RESET}"
     return f"{row1}\n{row2}"
 
 
